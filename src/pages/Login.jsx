@@ -1,13 +1,38 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../auth/AuthContext";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
 export default function Login() {
   const [form, setForm] = useState({ username: "", password: "" });
-  const [fieldErrors, setFieldErrors] = useState({});   // { username: ["..."], password: ["..."] }
-  const [globalErrors, setGlobalErrors] = useState([]); // ["..."]
-  const [successMessage, setSuccessMessage] = useState(""); // зелёный тост при успехе
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [globalErrors, setGlobalErrors] = useState([]);
+  const [successMessage, setSuccessMessage] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const { login, isAuthenticated } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // если пришли с защищённой страницы — показать уведомление
+  useEffect(() => {
+    if (location.state?.fromProtected) {
+      // покажем твой красный тост (он уже рендерится из globalErrors)
+      setGlobalErrors(["You must be logged in to access the chat."]);
+      // при желании сразу чистим state, чтобы при F5 не повторялся
+      window.history.replaceState({}, document.title, "/login");
+    }
+  }, [location.state]);
+
+ // если уже авторизованы — перейти туда, откуда пришёл, или на главную
+useEffect(() => {
+  if (isAuthenticated) {
+    const from = location.state?.from || "/"; // можно поменять "/" → "/chat" если хочешь по умолчанию туда
+    navigate(from, { replace: true });
+  }
+}, [isAuthenticated, navigate, location.state]);
+
 
   const first = (x) => (Array.isArray(x) ? x[0] : x);
   const invalid = (n) => (fieldErrors[n] ? "input invalid" : "input");
@@ -28,18 +53,14 @@ export default function Login() {
 
   async function parseMaybeJson(res) {
     const ct = res.headers.get("content-type") || "";
-    // если явно JSON
     if (ct.includes("application/json")) {
-      try { return await res.json(); } catch { /* fallthrough */ }
+      try { return await res.json(); } catch {}
     }
-    // иначе пробуем читать текст и парсить
     try {
       const t = await res.text();
       if (!t) return undefined;
       try { return JSON.parse(t); } catch { return { message: t }; }
-    } catch {
-      return undefined;
-    }
+    } catch { return undefined; }
   }
 
   async function onSubmit(e) {
@@ -47,7 +68,6 @@ export default function Login() {
     setGlobalErrors([]);
     setSuccessMessage("");
 
-    // клиентская валидация
     const fe = {};
     if (!form.username?.trim()) fe.username = ["Required"];
     if (!form.password?.trim()) fe.password = ["Required"];
@@ -69,13 +89,21 @@ export default function Login() {
       const data = await parseMaybeJson(res);
 
       if (res.ok) {
-        // если бек возвращает 200, но с success:false/error внутри — считаем ошибкой
         if (data && (data.success === false || data.authenticated === false || data.error)) {
           setGlobalErrors([data.message || data.error || "Wrong login or password"]);
           return;
         }
-        // 200/201/204 — успех
+
+        // сохраняем токен в контексте (авторизация)
+        if (data?.accessToken) {
+          login(data.accessToken);
+        } else {
+          // если токен не приходит, создаём фиктивный
+          login("DUMMY_TOKEN");
+        }
+
         setSuccessMessage(data?.message || "Logged in successfully");
+        navigate("/chat", { replace: true });
         return;
       }
 
@@ -85,7 +113,6 @@ export default function Login() {
       }
 
       if (res.status === 400) {
-        // Полевые ошибки, если пришли
         const fe2 = {};
         if (data?.errors && typeof data.errors === "object") {
           for (const [k, v] of Object.entries(data.errors)) {
@@ -97,7 +124,6 @@ export default function Login() {
         return;
       }
 
-      // прочие статусы
       setGlobalErrors([data?.message || `Unexpected error (${res.status})`]);
     } catch {
       setGlobalErrors(["Network error"]);
@@ -108,15 +134,13 @@ export default function Login() {
 
   return (
     <div className="page">
-      {/* красный тост */}
       {globalErrors.length > 0 && (
-        <div className="toast toast-error" role="alert" aria-live="polite">
+        <div className="toast toast-error" role="alert">
           {globalErrors.join(" • ")}
         </div>
       )}
-      {/* зелёный тост */}
       {successMessage && (
-        <div className="toast toast-success" role="status" aria-live="polite">
+        <div className="toast toast-success" role="status">
           {successMessage}
         </div>
       )}
@@ -136,11 +160,9 @@ export default function Login() {
               value={form.username}
               onChange={onChange}
               className={invalid("username")}
-              aria-invalid={!!fieldErrors.username}
-              aria-describedby={fieldErrors.username ? "err-username" : undefined}
             />
             {fieldErrors.username && (
-              <div id="err-username" role="alert" className="hint-error">
+              <div id="err-username" className="hint-error">
                 {first(fieldErrors.username)}
               </div>
             )}
@@ -156,11 +178,9 @@ export default function Login() {
               value={form.password}
               onChange={onChange}
               className={invalid("password")}
-              aria-invalid={!!fieldErrors.password}
-              aria-describedby={fieldErrors.password ? "err-password" : undefined}
             />
             {fieldErrors.password && (
-              <div id="err-password" role="alert" className="hint-error">
+              <div id="err-password" className="hint-error">
                 {first(fieldErrors.password)}
               </div>
             )}
@@ -173,20 +193,63 @@ export default function Login() {
       </div>
 
       <style>{`
-        *{box-sizing:border-box}
-        .page{min-height:100vh;display:grid;place-items:center;background:#0b0e12;color:#e8eef7;padding:24px}
-        .card{width:420px;background:#141920;border:1px solid rgba(255,255,255,.06);border-radius:16px;padding:24px 20px}
-        .sub{color:#9aa7b5;margin-top:4px}
-        .form{display:grid;gap:12px;margin-top:12px}
-        .field{display:grid;gap:6px}
-        .input{width:100%;background:transparent;color:#e8eef7;border:0;border-bottom:1.5px solid #2a323c;padding:12px 2px 10px;border-radius:6px;outline:none}
-        .input.invalid{border-color:rgba(255,107,107,.85);box-shadow:0 0 0 3px rgba(255,107,107,.12)}
-        .hint-error{color:#ff9c9c;font-size:12.5px;margin-top:-2px}
-        .primary.big-btn{margin-top:6px;padding:12px 14px;background:linear-gradient(180deg,#2a66ff,#1f50cc);border:1px solid #224fbb;color:#fff;border-radius:10px;font-weight:600}
-        .toast{margin-bottom:14px;padding:10px 12px;border-radius:10px}
-        .toast-error{background:rgba(255,107,107,.08);border:1px solid rgba(255,107,107,.35);color:#ffd2d2}
-        .toast-success{background:rgba(139,212,139,.10);border:1px solid rgba(139,212,139,.35);color:#d8ffd8}
-      `}</style>
+  *{box-sizing:border-box}
+  .page{
+    min-height:100vh;display:grid;place-items:center;
+    background:#f3ede6; /* светлый фон как на Home */
+    color:#3b2f2f;padding:24px
+  }
+  .card{
+    width:420px;background:#fff;color:#3b2f2f;
+    border:1px solid #e7e1d9;border-radius:16px;
+    padding:24px 20px;box-shadow:0 8px 20px rgba(0,0,0,.05)
+  }
+  .sub{color:#7c7068;margin-top:4px}
+  .form{display:grid;gap:12px;margin-top:12px}
+  .field{display:grid;gap:6px}
+  .input{
+    width:100%;background:#fff;color:#3b2f2f;
+    border:1px solid #d9d3cc;padding:12px 10px;
+    border-radius:10px;outline:none;transition:.15s border,.15s box-shadow
+  }
+  .input:focus{
+    border-color:#b88656;box-shadow:0 0 0 3px rgba(184,134,86,.25)
+  }
+  .input.invalid{
+    border-color:#ef4444;box-shadow:0 0 0 3px rgba(239,68,68,.15)
+  }
+  .hint-error{color:#b00020;font-size:12.5px;margin-top:-2px}
+
+  /* коричневая кнопка */
+  .primary.big-btn{
+    margin-top:6px;padding:12px 14px;
+    background:linear-gradient(180deg,#c69c6d,#a47848);
+    border:1px solid #a47848;color:#fff;
+    border-radius:10px;font-weight:600;
+    transition:.2s filter
+  }
+  .primary.big-btn:hover{filter:brightness(1.05)}
+
+  /* тосты */
+  .toast{margin-bottom:14px;padding:10px 12px;border-radius:10px}
+  .toast-error{
+    background:rgba(239,68,68,.08);
+    border:1px solid rgba(239,68,68,.35);color:#7f1d1d
+  }
+  .toast-success{
+    background:rgba(172,133,98,.1);
+    border:1px solid rgba(172,133,98,.35);color:#5d3e22
+  }
+
+  input:-webkit-autofill,
+  input:-webkit-autofill:focus{
+    -webkit-box-shadow:0 0 0 30px #fff inset !important;
+    -webkit-text-fill-color:#3b2f2f !important;
+    caret-color:#3b2f2f;
+  }
+`}</style>
+
+
     </div>
   );
 }
