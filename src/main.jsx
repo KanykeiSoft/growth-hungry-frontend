@@ -3,8 +3,8 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
-import { AuthProvider } from "./auth/AuthContext";
-import ProtectedRoute from "./routes/ProtectedRoute";
+import { AuthProvider } from "./auth/AuthContext.jsx";
+import ProtectedRoute from "./routes/ProtectedRoute.jsx";
 
 import Login from "./pages/Login.jsx";
 import ChatPage from "./pages/ChatPage.jsx";

@@ -1,4 +1,4 @@
-import { useAuth } from "../auth/AuthContext";
+import { useAuth } from "../auth/AuthContext.jsx";
 
 export default function ChatPage() {
   const { logout } = useAuth();

@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+// src/pages/Login.jsx
+import { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useAuth } from "../auth/AuthContext";
+import { useAuth } from "../auth/AuthContext.jsx"; // << важный фикс (.jsx)
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
@@ -15,24 +16,25 @@ export default function Login() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // если пришли с защищённой страницы — показать уведомление
+  // 1) один раз запоминаем, куда нужно вернуть пользователя
+  const fromRef = useRef(location.state?.from || "/chat");
+  const cameFromProtected = location.state?.fromProtected === true;
+
+  // если пришли с защищённой страницы — показать уведомление и очистить state в URL
   useEffect(() => {
-    if (location.state?.fromProtected) {
-      // покажем твой красный тост (он уже рендерится из globalErrors)
+    if (cameFromProtected) {
       setGlobalErrors(["You must be logged in to access the chat."]);
-      // при желании сразу чистим state, чтобы при F5 не повторялся
+      // очищаем state в истории, чтобы при F5 тост не повторялся
       window.history.replaceState({}, document.title, "/login");
     }
-  }, [location.state]);
+  }, [cameFromProtected]);
 
- // если уже авторизованы — перейти туда, откуда пришёл, или на главную
-useEffect(() => {
-  if (isAuthenticated) {
-    const from = location.state?.from || "/"; // можно поменять "/" → "/chat" если хочешь по умолчанию туда
-    navigate(from, { replace: true });
-  }
-}, [isAuthenticated, navigate, location.state]);
-
+  // если уже авторизованы — вернуть туда, куда хотели
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate(fromRef.current, { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
 
   const first = (x) => (Array.isArray(x) ? x[0] : x);
   const invalid = (n) => (fieldErrors[n] ? "input invalid" : "input");
@@ -98,12 +100,12 @@ useEffect(() => {
         if (data?.accessToken) {
           login(data.accessToken);
         } else {
-          // если токен не приходит, создаём фиктивный
+          // если токен не приходит, используем временный, чтобы проверить ProtectedRoute
           login("DUMMY_TOKEN");
         }
 
         setSuccessMessage(data?.message || "Logged in successfully");
-        navigate("/chat", { replace: true });
+        // навигацию теперь делает useEffect по isAuthenticated → вернёт на fromRef.current
         return;
       }
 
@@ -196,8 +198,7 @@ useEffect(() => {
   *{box-sizing:border-box}
   .page{
     min-height:100vh;display:grid;place-items:center;
-    background:#f3ede6; /* светлый фон как на Home */
-    color:#3b2f2f;padding:24px
+    background:#f3ede6;color:#3b2f2f;padding:24px
   }
   .card{
     width:420px;background:#fff;color:#3b2f2f;
@@ -219,8 +220,6 @@ useEffect(() => {
     border-color:#ef4444;box-shadow:0 0 0 3px rgba(239,68,68,.15)
   }
   .hint-error{color:#b00020;font-size:12.5px;margin-top:-2px}
-
-  /* коричневая кнопка */
   .primary.big-btn{
     margin-top:6px;padding:12px 14px;
     background:linear-gradient(180deg,#c69c6d,#a47848);
@@ -229,8 +228,6 @@ useEffect(() => {
     transition:.2s filter
   }
   .primary.big-btn:hover{filter:brightness(1.05)}
-
-  /* тосты */
   .toast{margin-bottom:14px;padding:10px 12px;border-radius:10px}
   .toast-error{
     background:rgba(239,68,68,.08);
@@ -240,7 +237,6 @@ useEffect(() => {
     background:rgba(172,133,98,.1);
     border:1px solid rgba(172,133,98,.35);color:#5d3e22
   }
-
   input:-webkit-autofill,
   input:-webkit-autofill:focus{
     -webkit-box-shadow:0 0 0 30px #fff inset !important;
@@ -248,8 +244,6 @@ useEffect(() => {
     caret-color:#3b2f2f;
   }
 `}</style>
-
-
     </div>
   );
 }

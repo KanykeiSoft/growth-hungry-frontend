@@ -154,7 +154,6 @@ export default function Register() {
         </form>
       </div>
 
-      {/* тот же стиль, что и в Login.jsx */}
       <style>{`
         *{box-sizing:border-box}
         .page{
