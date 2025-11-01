@@ -1,7 +1,8 @@
+
 // src/pages/Login.jsx
 import { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useAuth } from "../auth/AuthContext.jsx"; // << важный фикс (.jsx)
+import { useAuth } from "../auth/AuthContext.jsx";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
@@ -16,24 +17,22 @@ export default function Login() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // 1) один раз запоминаем, куда нужно вернуть пользователя
+  // один раз запоминаем, куда вернуть пользователя
   const fromRef = useRef(location.state?.from || "/chat");
   const cameFromProtected = location.state?.fromProtected === true;
 
-  // если пришли с защищённой страницы — показать уведомление и очистить state в URL
+  // уведомление, если пришли с защищённой страницы
   useEffect(() => {
     if (cameFromProtected) {
       setGlobalErrors(["You must be logged in to access the chat."]);
-      // очищаем state в истории, чтобы при F5 тост не повторялся
+      // очистим state, чтобы при F5 тост не повторялся
       window.history.replaceState({}, document.title, "/login");
     }
   }, [cameFromProtected]);
 
-  // если уже авторизованы — вернуть туда, куда хотели
+  // если уже авторизованы — возвращаем туда, куда шёл
   useEffect(() => {
-    if (isAuthenticated) {
-      navigate(fromRef.current, { replace: true });
-    }
+    if (isAuthenticated) navigate(fromRef.current, { replace: true });
   }, [isAuthenticated, navigate]);
 
   const first = (x) => (Array.isArray(x) ? x[0] : x);
@@ -56,13 +55,24 @@ export default function Login() {
   async function parseMaybeJson(res) {
     const ct = res.headers.get("content-type") || "";
     if (ct.includes("application/json")) {
-      try { return await res.json(); } catch {}
+      try {
+        return await res.json();
+      } catch (e) {
+        // игнорируем ошибку парсинга, ниже попробуем как текст
+        return undefined;
+      }
     }
     try {
       const t = await res.text();
       if (!t) return undefined;
-      try { return JSON.parse(t); } catch { return { message: t }; }
-    } catch { return undefined; }
+      try {
+        return JSON.parse(t);
+      } catch {
+        return { message: t };
+      }
+    } catch {
+      return undefined;
+    }
   }
 
   async function onSubmit(e) {
@@ -96,16 +106,16 @@ export default function Login() {
           return;
         }
 
-        // сохраняем токен в контексте (авторизация)
+        // сохраняем токен (авторизация)
         if (data?.accessToken) {
           login(data.accessToken);
         } else {
-          // если токен не приходит, используем временный, чтобы проверить ProtectedRoute
+          // временный токен для локальной проверки ProtectedRoute
           login("DUMMY_TOKEN");
         }
 
         setSuccessMessage(data?.message || "Logged in successfully");
-        // навигацию теперь делает useEffect по isAuthenticated → вернёт на fromRef.current
+        // навигация произойдёт в useEffect по isAuthenticated
         return;
       }
 

@@ -1,3 +1,4 @@
+// src/pages/Register.jsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -31,12 +32,25 @@ export default function Register() {
 
   async function parseMaybeJson(res) {
     const ct = res.headers.get("content-type") || "";
-    if (ct.includes("application/json")) { try { return await res.json(); } catch {} }
+    if (ct.includes("application/json")) {
+      try {
+        return await res.json();
+      } catch (e) {
+        // игнорируем ошибку парсинга и дадим шанс текстовому парсеру ниже
+        return undefined;
+      }
+    }
     try {
       const t = await res.text();
       if (!t) return undefined;
-      try { return JSON.parse(t); } catch { return { message: t }; }
-    } catch { return undefined; }
+      try {
+        return JSON.parse(t);
+      } catch {
+        return { message: t };
+      }
+    } catch {
+      return undefined;
+    }
   }
 
   async function onSubmit(e) {
@@ -48,7 +62,11 @@ export default function Register() {
     if (!form.username?.trim()) fe.username = ["Required"];
     if (!form.email?.trim()) fe.email = ["Required"];
     if (!form.password?.trim()) fe.password = ["Required"];
-    if (Object.keys(fe).length) { setFieldErrors(fe); setGlobalErrors(["Please fill in all fields"]); return; }
+    if (Object.keys(fe).length) {
+      setFieldErrors(fe);
+      setGlobalErrors(["Please fill in all fields"]);
+      return;
+    }
 
     setLoading(true);
     try {
@@ -60,9 +78,12 @@ export default function Register() {
       const data = await parseMaybeJson(res);
 
       if (res.ok) {
+        // показываем локально и сразу ведём на /login с флеш-сообщением
         setSuccessMessage(data?.message || "Account created. Please log in.");
-        // небольшая пауза и переход на логин
-        setTimeout(() => navigate("/login", { replace: true }), 600);
+        navigate("/login", {
+          replace: true,
+          state: { flash: { type: "success", text: data?.message || "Account created. Please log in." } },
+        });
         return;
       }
 
@@ -182,7 +203,7 @@ export default function Register() {
         .hint-error{color:#b00020;font-size:12.5px;margin-top:-2px}
 
         .primary.big-btn{
-          margin-top:6px;padding:14px 16px; /* больше кнопка */
+          margin-top:6px;padding:14px 16px;
           background:linear-gradient(180deg,#c69c6d,#a47848);
           border:1px solid #a47848;color:#fff;border-radius:10px;font-weight:700;
           transition:.2s filter
