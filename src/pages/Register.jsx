@@ -35,7 +35,7 @@ export default function Register() {
     if (ct.includes("application/json")) {
       try {
         return await res.json();
-      } catch (e) {
+      } catch  {
         // игнорируем ошибку парсинга и дадим шанс текстовому парсеру ниже
         return undefined;
       }

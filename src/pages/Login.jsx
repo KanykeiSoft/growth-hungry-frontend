@@ -57,7 +57,7 @@ export default function Login() {
     if (ct.includes("application/json")) {
       try {
         return await res.json();
-      } catch (e) {
+      } catch  {
         // игнорируем ошибку парсинга, ниже попробуем как текст
         return undefined;
       }
