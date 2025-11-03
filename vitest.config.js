@@ -1,9 +1,11 @@
-// vitest.config.js (или .ts — не важно)
 import { defineConfig } from "vitest/config";
+import react from "@vitejs/plugin-react";
+
 export default defineConfig({
+  plugins: [react()],
   test: {
     environment: "jsdom",
-    setupFiles: ["./src/setupTests.js"],  // <-- .js
+    setupFiles: "src/setupTests.js",   // без "./"
     css: false,
     globals: true,
   },

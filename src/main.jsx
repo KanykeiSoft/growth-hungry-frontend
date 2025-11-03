@@ -10,6 +10,8 @@ import Login from "./pages/Login.jsx";
 import ChatPage from "./pages/ChatPage.jsx";
 import Register from "./pages/Register.jsx";
 import Home from "./pages/Home.jsx";
+import "./styles/chat.css";
+
 
 import "./index.css";
 

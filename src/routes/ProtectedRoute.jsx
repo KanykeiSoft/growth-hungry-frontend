@@ -2,26 +2,44 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext.jsx";
 
-export default function ProtectedRoute() {
-  const { isAuthenticated } = useAuth();
+/**
+ * Защищённый маршрут.
+ * - Если пользователь не аутентифицирован — редиректит на /login и запоминает, куда он хотел попасть.
+ * - Если аутентифицирован — рендерит дочерний маршрут (<Outlet />) или переданные children.
+ *
+ * Поддерживаются оба варианта использования:
+ *   <Route element={<ProtectedRoute />}>
+ *     <Route path="/chat" element={<ChatPage />} />
+ *   </Route>
+ *
+ *   или
+ *
+ *   <ProtectedRoute>
+ *     <ChatPage />
+ *   </ProtectedRoute>
+ */
+export default function ProtectedRoute({ children }) {
+  const { isAuthenticated, token } = useAuth();
   const location = useLocation();
 
-  // если пользователь не авторизован — редирект на /login
-  if (!isAuthenticated) {
+  // Фолбэк: если в контексте нет boolean-флага, считаем по наличию токена
+  const authed = typeof isAuthenticated === "boolean" ? isAuthenticated : Boolean(token);
+
+  if (!authed) {
     return (
       <Navigate
         to="/login"
         replace
         state={{
-          fromProtected: true, // флаг, что редирект с защищённой страницы
-          from: location.pathname + location.search + location.hash, // куда хотел попасть
+          fromProtected: true,
+          from: location.pathname + location.search + location.hash,
         }}
       />
     );
   }
 
-  // иначе рендерим дочерние защищённые маршруты
-  return <Outlet />;
+  // Если компонент используется как обёртка с children — отдаём children, иначе работаем через <Outlet/>
+  return children ? children : <Outlet />;
 }
 
 

@@ -1,26 +1,68 @@
 // src/auth/AuthContext.jsx
-import { useContext, useEffect, useMemo, useState } from "react";
-import { AuthContext } from "./AuthContext.js";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
-export const AuthProvider = ({ children }) => {
+const AuthContext = createContext(null);
+
+export function AuthProvider({ children }) {
+  // Храним токен в state + восстанавливаем из localStorage при старте
   const [token, setToken] = useState(() => localStorage.getItem("token"));
+  const [user, setUser] = useState(() => {
+    try {
+      const raw = localStorage.getItem("user");
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  });
 
+  // Синхронизируем token/user с localStorage
   useEffect(() => {
     if (token) localStorage.setItem("token", token);
     else localStorage.removeItem("token");
   }, [token]);
 
+  useEffect(() => {
+    if (user) localStorage.setItem("user", JSON.stringify(user));
+    else localStorage.removeItem("user");
+  }, [user]);
+
+  // Флаг авторизации
+  const isAuthenticated = Boolean(token);
+
+  // Вход пользователя (после успешного логина)
+  function login({ token: newToken, user: newUser }) {
+    if (!newToken) throw new Error("Не получен токен авторизации");
+    setToken(newToken);
+    if (newUser) setUser(newUser);
+  }
+
+  // Выход (очищаем все данные)
+  function logout() {
+    setToken(null);
+    setUser(null);
+  }
+
+  // Контекстное значение
   const value = useMemo(
     () => ({
       token,
-      isAuthenticated: Boolean(token),
-      login: (newToken) => setToken(newToken),
-      logout: () => setToken(null),
+      user,
+      isAuthenticated,
+      login,
+      logout,
+      setToken,
+      setUser,
     }),
-    [token]
+    [token, user, isAuthenticated]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-};
-// eslint-disable-next-line react-refresh/only-export-components
-export const useAuth = () => useContext(AuthContext);
+}
+
+export function useAuth() {
+  const ctx = useContext(AuthContext);
+  if (!ctx) {
+    throw new Error("useAuth должен вызываться внутри <AuthProvider>");
+  }
+  return ctx;
+}

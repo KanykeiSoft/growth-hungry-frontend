@@ -1,4 +1,3 @@
-
 // src/pages/Login.jsx
 import { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -17,20 +16,20 @@ export default function Login() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // один раз запоминаем, куда вернуть пользователя
+  // Куда вернуть пользователя после входа
   const fromRef = useRef(location.state?.from || "/chat");
   const cameFromProtected = location.state?.fromProtected === true;
 
-  // уведомление, если пришли с защищённой страницы
+  // Тост, если пришли с защищённой страницы без авторизации
   useEffect(() => {
     if (cameFromProtected) {
       setGlobalErrors(["You must be logged in to access the chat."]);
-      // очистим state, чтобы при F5 тост не повторялся
+      // уберём state у /login, чтобы при F5 не повторялось
       window.history.replaceState({}, document.title, "/login");
     }
   }, [cameFromProtected]);
 
-  // если уже авторизованы — возвращаем туда, куда шёл
+  // Если уже авторизованы — возвращаем туда, куда шёл
   useEffect(() => {
     if (isAuthenticated) navigate(fromRef.current, { replace: true });
   }, [isAuthenticated, navigate]);
@@ -57,9 +56,8 @@ export default function Login() {
     if (ct.includes("application/json")) {
       try {
         return await res.json();
-      } catch  {
-        // игнорируем ошибку парсинга, ниже попробуем как текст
-        return undefined;
+      } catch {
+        // продолжим ниже как текст
       }
     }
     try {
@@ -80,6 +78,7 @@ export default function Login() {
     setGlobalErrors([]);
     setSuccessMessage("");
 
+    // валидация формы
     const fe = {};
     if (!form.username?.trim()) fe.username = ["Required"];
     if (!form.password?.trim()) fe.password = ["Required"];
@@ -94,31 +93,42 @@ export default function Login() {
       const res = await fetch(`${API_BASE}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
+        credentials: "include", // оставим: не мешает, полезно если бек кладёт httpOnly cookie
         body: JSON.stringify(form),
       });
 
       const data = await parseMaybeJson(res);
 
       if (res.ok) {
-        if (data && (data.success === false || data.authenticated === false || data.error)) {
-          setGlobalErrors([data.message || data.error || "Wrong login or password"]);
+        // успешный логин: принимаем разные названия поля токена
+        const token =
+          data?.accessToken ||
+          data?.token ||
+          data?.jwt ||
+          null;
+
+        if (!token) {
+          // если бек не вернул токен — не падаем, но подсказываем
+          setSuccessMessage(data?.message || "Logged in (no token returned)");
+          setGlobalErrors([
+            "Backend did not return a token. Check /api/auth/login response.",
+          ]);
           return;
         }
 
-        // сохраняем токен (авторизация)
-        if (data?.accessToken) {
-          login(data.accessToken);
-        } else {
-          // временный токен для локальной проверки ProtectedRoute
-          login("DUMMY_TOKEN");
-        }
+        // обновлённый AuthContext ожидает login({ token, user })
+        const user =
+          data?.user ||
+          data?.profile ||
+          null;
 
+        login({ token, user });
         setSuccessMessage(data?.message || "Logged in successfully");
-        // навигация произойдёт в useEffect по isAuthenticated
+        // редирект сработает через useEffect по isAuthenticated
         return;
       }
 
+      // стандартные ошибки
       if (res.status === 401) {
         setGlobalErrors([data?.message || "Wrong login or password"]);
         return;
