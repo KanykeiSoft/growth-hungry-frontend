@@ -2,7 +2,6 @@
 import React from "react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../auth/useAuth";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
