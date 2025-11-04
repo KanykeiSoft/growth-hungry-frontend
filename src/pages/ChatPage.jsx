@@ -1,6 +1,6 @@
 // src/pages/ChatPage.jsx
 import React from "react";
-import { useAuth } from "../auth/AuthContext.jsx";
+import { useAuth } from "../auth/useAuth";
 import Chat from "../components/Chat.jsx";
 
 export default function ChatPage() {
