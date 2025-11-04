@@ -1,4 +1,5 @@
-import { Routes, Route, Link } from "react-router-dom";
+import React from "react";
+import { Routes, Route, Link, Navigate } from "react-router-dom";
 import Register from "./pages/Register.jsx";
 import Login from "./pages/Login.jsx";
 import ChatPage from "./pages/ChatPage.jsx";
@@ -18,13 +19,18 @@ export default function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
 
+        {/* PROTECTED AREA */}
         <Route element={<ProtectedRoute />}>
-    <Route path="/chat" element={<ChatPage />} />
-  </Route>
+          <Route path="/chat" element={<ChatPage />} />
+        </Route>
+
+        {/* (optional) catch-all */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>
   );
 }
+
 
 
 

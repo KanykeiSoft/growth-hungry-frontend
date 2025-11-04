@@ -1,27 +1,27 @@
 // src/routes/ProtectedRoute.jsx
+import React from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
-import { useAuth } from "../auth/AuthContext.jsx";
+import { useAuth } from "../auth/useAuth";
 
-export default function ProtectedRoute() {
-  const { isAuthenticated } = useAuth();
+export default function ProtectedRoute({ children = null }) {
+  const { isAuthenticated, token } = useAuth();
   const location = useLocation();
 
-  // если пользователь не авторизован — редирект на /login
-  if (!isAuthenticated) {
+  const authed =
+    typeof isAuthenticated === "boolean" ? isAuthenticated : Boolean(token);
+
+  if (!authed) {
     return (
       <Navigate
         to="/login"
         replace
-        state={{
-          fromProtected: true, // флаг, что редирект с защищённой страницы
-          from: location.pathname + location.search + location.hash, // куда хотел попасть
-        }}
+        state={{ from: location, fromProtected: true}}
       />
     );
   }
 
-  // иначе рендерим дочерние защищённые маршруты
-  return <Outlet />;
+  return children ?? <Outlet />;
 }
+
 
 

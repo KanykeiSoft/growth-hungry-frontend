@@ -1,4 +1,5 @@
 // src/pages/Register.jsx
+import React from "react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -30,23 +31,31 @@ export default function Register() {
     if (successMessage) setSuccessMessage("");
   }
 
+  function normalizePayload(f) {
+    // лёгкая нормализация перед отправкой
+    return {
+      username: f.username?.trim(),
+      email: f.email?.trim().toLowerCase(),
+      password: f.password ?? "",
+    };
+  }
+
   async function parseMaybeJson(res) {
     const ct = res.headers.get("content-type") || "";
     if (ct.includes("application/json")) {
       try {
         return await res.json();
-      } catch  {
-        // игнорируем ошибку парсинга и дадим шанс текстовому парсеру ниже
-        return undefined;
+      } catch {
+        /* fallback ниже */
       }
     }
     try {
-      const t = await res.text();
-      if (!t) return undefined;
+      const text = await res.text();
+      if (!text) return undefined;
       try {
-        return JSON.parse(t);
+        return JSON.parse(text);
       } catch {
-        return { message: t };
+        return { message: text };
       }
     } catch {
       return undefined;
@@ -58,36 +67,60 @@ export default function Register() {
     setGlobalErrors([]);
     setSuccessMessage("");
 
+    // фронт-валидация
     const fe = {};
     if (!form.username?.trim()) fe.username = ["Required"];
     if (!form.email?.trim()) fe.email = ["Required"];
     if (!form.password?.trim()) fe.password = ["Required"];
+    if (form.password && form.password.length < 6)
+      fe.password = [...(fe.password || []), "Min length is 6"];
     if (Object.keys(fe).length) {
       setFieldErrors(fe);
-      setGlobalErrors(["Please fill in all fields"]);
+      setGlobalErrors(["Please correct the highlighted fields"]);
       return;
     }
+
+    const payload = normalizePayload(form);
 
     setLoading(true);
     try {
       const res = await fetch(`${API_BASE}/api/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       });
+
       const data = await parseMaybeJson(res);
 
       if (res.ok) {
-        // показываем локально и сразу ведём на /login с флеш-сообщением
-        setSuccessMessage(data?.message || "Account created. Please log in.");
+        const msg = data?.message || "Account created. Please log in.";
+        setSuccessMessage(msg);
+        // мгновенный переход на /login с flash-сообщением
         navigate("/login", {
           replace: true,
-          state: { flash: { type: "success", text: data?.message || "Account created. Please log in." } },
+          state: {
+            flash: { type: "success", text: msg },
+          },
         });
         return;
       }
 
-      if (res.status === 400) {
+      // 409 — уже существует username/email
+      if (res.status === 409) {
+        setGlobalErrors([data?.message || "Username or email already exists"]);
+        // если backend прислал detail по полям — подсветим
+        const fe2 = {};
+        if (data?.errors && typeof data.errors === "object") {
+          for (const [k, v] of Object.entries(data.errors)) {
+            fe2[k] = Array.isArray(v) ? v.map(String) : [String(v)];
+          }
+          if (Object.keys(fe2).length) setFieldErrors(fe2);
+        }
+        return;
+      }
+
+      // 422/400 — ошибки валидации формы
+      if (res.status === 422 || res.status === 400) {
         const fe2 = {};
         if (data?.errors && typeof data.errors === "object") {
           for (const [k, v] of Object.entries(data.errors)) {
@@ -133,6 +166,7 @@ export default function Register() {
               value={form.username}
               onChange={onChange}
               className={invalid("username")}
+              autoComplete="username"
             />
             {fieldErrors.username && (
               <div className="hint-error">{first(fieldErrors.username)}</div>
@@ -148,6 +182,7 @@ export default function Register() {
               value={form.email}
               onChange={onChange}
               className={invalid("email")}
+              autoComplete="email"
             />
             {fieldErrors.email && (
               <div className="hint-error">{first(fieldErrors.email)}</div>
@@ -163,6 +198,7 @@ export default function Register() {
               value={form.password}
               onChange={onChange}
               className={invalid("password")}
+              autoComplete="new-password"
             />
             {fieldErrors.password && (
               <div className="hint-error">{first(fieldErrors.password)}</div>
