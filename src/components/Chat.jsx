@@ -1,16 +1,16 @@
 // src/components/Chat.jsx
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../auth/AuthContext.jsx";
+import { useAuth } from "../auth/useAuth";
 import { api } from "../api/client";
 
-// Хелпер: создаёт сообщение с уникальным id
+// helper: message with unique id
 function mkMsg(sender, text) {
   return {
     id: (crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`),
-    sender,            // "user" | "bot" | "system"
+    sender, // "user" | "bot" | "system"
     text,
-    ts: Date.now(),    // можно использовать для времени/сортировки
+    ts: Date.now(),
   };
 }
 
@@ -21,32 +21,25 @@ function mkMsg(sender, text) {
  * - onSend?: (text: string) => Promise<{ reply?: string }>
  */
 export default function Chat({ initialMessages = [], onSend }) {
-  const { logout } = useAuth?.() ?? {}; // token не обязателен здесь — интерсептор сам подставит
+  const { logout } = useAuth?.() ?? {};
   const navigate = useNavigate();
 
-  // История чата: гарантируем, что у каждого сообщения есть id
+  // история сообщений
   const [messages, setMessages] = useState(
-    (
-      initialMessages.length
-        ? initialMessages
-        : [mkMsg("bot", "Hi, ask me")]
-    ).map(m => (m?.id ? m : mkMsg(m.sender, m.text)))
+    (initialMessages.length ? initialMessages : [mkMsg("bot", "Hi, ask me")])
+      .map((m) => (m?.id ? m : mkMsg(m.sender, m.text)))
   );
-
-  // Текущее значение инпута
   const [text, setText] = useState("");
-
-  // Флаги UI
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Автоскролл вниз при добавлении сообщений
+  // автоскролл вниз
   const endRef = useRef(null);
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
-  // Default send to /api/chat (JWT will be automatically attached by the interceptor from api)
+  // дефолтная отправка в /api/chat (JWT добавит интерсептор)
   const defaultOnSend = async (msg) => {
     try {
       const { data } = await api.post("/api/chat", { message: msg });
@@ -54,25 +47,21 @@ export default function Chat({ initialMessages = [], onSend }) {
     } catch (e) {
       const status = e?.response?.status;
       if (status === 401) {
-        // Token missing or expired → logging out and redirecting to login
         logout?.();
         navigate("/login");
         throw new Error("401 Unauthorized. Пожалуйста, войдите заново.");
       }
-      const text = e?.response?.data ?? e.message ?? "запрос отклонён";
-      throw new Error(`Ошибка${status ? " " + status : ""}: ${String(text)}`);
+      const body = e?.response?.data ?? e.message ?? "запрос отклонён";
+      throw new Error(`Ошибка${status ? " " + status : ""}: ${String(body)}`);
     }
   };
 
-  // button= Send
   async function handleSend() {
     const msg = text.trim();
     if (!msg || loading) return;
 
     setError("");
     setText("");
-
-    // add message users ( id)
     setMessages((prev) => [...prev, mkMsg("user", msg)]);
     setLoading(true);
 
@@ -80,21 +69,20 @@ export default function Chat({ initialMessages = [], onSend }) {
       const handler = onSend || defaultOnSend;
       const res = await handler(msg);
       const reply = res?.reply ?? "(no reply)";
-
-      // add responce from ai (id)
       setMessages((prev) => [...prev, mkMsg("bot", reply)]);
     } catch (e) {
       setError(e?.message || "Failed to send message");
+      // отдельный системный пузырь, чтобы тесты ловили именно его
       setMessages((prev) => [
         ...prev,
-        mkMsg("system", "Chat error. Please try again later.")
+        mkMsg("system", "Chat error. Please try again later."),
       ]);
     } finally {
       setLoading(false);
     }
   }
 
-    // Enter = send; Shift+Enter = new line 
+  // Enter = send; Shift+Enter = newline
   function onKeyDown(e) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -111,7 +99,15 @@ export default function Chat({ initialMessages = [], onSend }) {
       <main className="chat-window" aria-live="polite">
         {messages.map((m) => (
           <div key={m.id} className={`msg ${m.sender}`}>
-            <div className="bubble">{m.text}</div>
+            <div
+              className="bubble"
+              // помечаем только системный пузырь ошибки
+              {...(m.sender === "system" && m.text.startsWith("Chat error")
+                ? { "data-testid": "error-bubble", role: "status" }
+                : {})}
+            >
+              {m.text}
+            </div>
           </div>
         ))}
 
@@ -121,6 +117,7 @@ export default function Chat({ initialMessages = [], onSend }) {
           </div>
         )}
 
+        {/* сырой текст ошибки от запроса (например, "Network down") */}
         {error && <div className="error">{error}</div>}
         <div ref={endRef} />
       </main>
@@ -148,3 +145,4 @@ export default function Chat({ initialMessages = [], onSend }) {
     </div>
   );
 }
+
