@@ -3,11 +3,12 @@ import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
 import { api } from "../api/client";
+import { fetchSessionMessages } from "../api/chat";
 
 // helper: message with unique id
 function mkMsg(sender, text) {
   return {
-    id: (crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`),
+    id: crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`,
     sender, // "user" | "bot" | "system"
     text,
     ts: Date.now(),
@@ -19,15 +20,24 @@ function mkMsg(sender, text) {
  * Props:
  * - initialMessages?: Array<{ id?: string, sender: "bot" | "user" | "system", text: string }>
  * - onSend?: (text: string) => Promise<{ reply?: string }>
+ * - activeSessionId?: number | null
  */
-export default function Chat({ initialMessages = [], onSend }) {
+export default function Chat({
+  initialMessages = [],
+  onSend,
+  activeSessionId,
+  onSessionChange,
+  onNewSessionCreated,
+}) {
   const { logout } = useAuth?.() ?? {};
   const navigate = useNavigate();
 
   // история сообщений
   const [messages, setMessages] = useState(
-    (initialMessages.length ? initialMessages : [mkMsg("bot", "Hi, ask me")])
-      .map((m) => (m?.id ? m : mkMsg(m.sender, m.text)))
+    (initialMessages.length
+      ? initialMessages
+      : [mkMsg("bot", "Hi, ask me")]
+    ).map((m) => (m?.id ? m : mkMsg(m.sender, m.text)))
   );
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
@@ -39,10 +49,73 @@ export default function Chat({ initialMessages = [], onSend }) {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
-  // дефолтная отправка в /api/chat (JWT добавит интерсептор)
+  // --------- Загружаем сообщения при смене activeSessionId ---------
+  useEffect(() => {
+    // если сессия не выбрана (новый чат) — показываем дефолтное приветствие
+    if (!activeSessionId) {
+      setMessages(
+        (initialMessages.length
+          ? initialMessages
+          : [mkMsg("bot", "Hi, ask me")]
+        ).map((m) => (m?.id ? m : mkMsg(m.sender, m.text)))
+      );
+      return;
+    }
+
+    async function loadSession() {
+      setLoading(true);
+      setError("");
+      try {
+        const history = await fetchSessionMessages(activeSessionId);
+
+        // history: или массив, или объект с messages — подстраиваемся
+        const raw = Array.isArray(history)
+          ? history
+          : Array.isArray(history?.messages)
+          ? history.messages
+          : [];
+
+        const mapped = raw.map((m) => ({
+          ...m,
+          id: m.id || crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`,
+          sender:
+            m.sender ||
+            (m.role === "USER" || m.role === "user" ? "user" : "bot"),
+          text: m.content || m.text || "",
+        }));
+
+        setMessages(mapped);
+      } catch (e) {
+        console.error(e);
+        setError("Failed to load conversation history");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadSession();
+  }, [activeSessionId]); // ВАЖНО: только activeSessionId, без initialMessages
+
+  // --------- дефолтная отправка на /api/chat (JWT добавит интерсептор) ---------
   const defaultOnSend = async (msg) => {
     try {
-      const { data } = await api.post("/api/chat", { message: msg });
+      const payload = {
+        message: msg,
+        // если есть активная сессия — отправляем её id
+        ...(activeSessionId != null ? { chatSessionId: activeSessionId } : {}),
+      };
+
+      const { data } = await api.post("/api/chat", payload);
+
+      // читаем id сессии из ответа бэка (ChatResponse.chatSessionId)
+      const newSessionId = data?.chatSessionId;
+
+      // если бэк создал новую сессию — сообщаем наверх
+      if (newSessionId && !activeSessionId) {
+        onNewSessionCreated?.(newSessionId);
+        onSessionChange?.(newSessionId);
+      }
+
       return { reply: data?.reply ?? "(empty response)" };
     } catch (e) {
       const status = e?.response?.status;
@@ -56,6 +129,7 @@ export default function Chat({ initialMessages = [], onSend }) {
     }
   };
 
+  // --------- обработчик отправки сообщения ---------
   async function handleSend() {
     const msg = text.trim();
     if (!msg || loading) return;
@@ -117,7 +191,6 @@ export default function Chat({ initialMessages = [], onSend }) {
           </div>
         )}
 
-        {/* сырой текст ошибки от запроса (например, "Network down") */}
         {error && <div className="error">{error}</div>}
         <div ref={endRef} />
       </main>
@@ -145,4 +218,6 @@ export default function Chat({ initialMessages = [], onSend }) {
     </div>
   );
 }
+
+
 
