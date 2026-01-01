@@ -1,14 +1,12 @@
 // src/pages/Login.jsx
-import React from "react";
-import { useState, useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
 
-
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8080";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 
 export default function Login() {
-  const [form, setForm] = useState({ username: "", password: "" });
+  const [form, setForm] = useState({ email: "", password: "" });
   const [fieldErrors, setFieldErrors] = useState({});
   const [globalErrors, setGlobalErrors] = useState([]);
   const [successMessage, setSuccessMessage] = useState("");
@@ -18,20 +16,17 @@ export default function Login() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Куда вернуть пользователя после входа
   const fromRef = useRef(location.state?.from || "/chat");
   const cameFromProtected = location.state?.fromProtected === true;
 
-  // Тост, если пришли с защищённой страницы без авторизации
   useEffect(() => {
     if (cameFromProtected) {
       setGlobalErrors(["You must be logged in to access the chat."]);
-      // уберём state у /login, чтобы при F5 не повторялось
       window.history.replaceState({}, document.title, "/login");
     }
   }, [cameFromProtected]);
 
-  // Если уже авторизованы — возвращаем туда, куда шёл
+  // если уже авторизованы — сразу уводим
   useEffect(() => {
     if (isAuthenticated) navigate(fromRef.current, { replace: true });
   }, [isAuthenticated, navigate]);
@@ -42,6 +37,7 @@ export default function Login() {
   function onChange(e) {
     const { name, value } = e.target;
     setForm((s) => ({ ...s, [name]: value }));
+
     if (fieldErrors[name]) {
       setFieldErrors((prev) => {
         const copy = { ...prev };
@@ -59,7 +55,7 @@ export default function Login() {
       try {
         return await res.json();
       } catch {
-        // продолжим ниже как текст
+        // fallthrough
       }
     }
     try {
@@ -80,9 +76,9 @@ export default function Login() {
     setGlobalErrors([]);
     setSuccessMessage("");
 
-    // валидация формы
     const fe = {};
-    if (!form.username?.trim()) fe.username = ["Required"];
+    // Changed: validate email
+    if (!form.email?.trim()) fe.email = ["Required"];
     if (!form.password?.trim()) fe.password = ["Required"];
     if (Object.keys(fe).length) {
       setFieldErrors(fe);
@@ -92,47 +88,36 @@ export default function Login() {
 
     setLoading(true);
     try {
+      // Backend expects { email, password }
       const res = await fetch(`${API_BASE}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include", // оставим: не мешает, полезно если бек кладёт httpOnly cookie
         body: JSON.stringify(form),
       });
 
       const data = await parseMaybeJson(res);
 
       if (res.ok) {
-        // успешный логин: принимаем разные названия поля токена
-        const token =
-          data?.accessToken ||
-          data?.token ||
-          data?.jwt ||
-          null;
+        const token = data?.accessToken || data?.token || data?.jwt || null;
 
         if (!token) {
-          // если бек не вернул токен — не падаем, но подсказываем
           setSuccessMessage(data?.message || "Logged in (no token returned)");
-          setGlobalErrors([
-            "Backend did not return a token. Check /api/auth/login response.",
-          ]);
+          setGlobalErrors(["Backend did not return a token. Check /api/auth/login response."]);
           return;
         }
 
-        // обновлённый AuthContext ожидает login({ token, user })
-        const user =
-          data?.user ||
-          data?.profile ||
-          null;
+        const user = data?.user || data?.profile || null;
 
         login({ token, user });
         setSuccessMessage(data?.message || "Logged in successfully");
-        // редирект сработает через useEffect по isAuthenticated
+
+        // Надёжно: редирект сразу, не ждём эффекта
+        navigate(fromRef.current, { replace: true });
         return;
       }
 
-      // стандартные ошибки
       if (res.status === 401) {
-        setGlobalErrors([data?.message || "Wrong login or password"]);
+        setGlobalErrors([data?.message || "Wrong email or password"]);
         return;
       }
 
@@ -175,19 +160,19 @@ export default function Login() {
 
         <form className="form" noValidate onSubmit={onSubmit}>
           <div className="field">
-            <label>Username or Email</label>
+            <label>Email</label>
             <input
-              name="username"
-              autoComplete="username"
-              placeholder="Username or email"
-              type="text"
-              value={form.username}
+              name="email"
+              autoComplete="email"
+              placeholder="you@example.com"
+              type="email"
+              value={form.email}
               onChange={onChange}
-              className={invalid("username")}
+              className={invalid("email")}
             />
-            {fieldErrors.username && (
-              <div id="err-username" className="hint-error">
-                {first(fieldErrors.username)}
+            {fieldErrors.email && (
+              <div id="err-email" className="hint-error">
+                {first(fieldErrors.email)}
               </div>
             )}
           </div>
@@ -217,55 +202,56 @@ export default function Login() {
       </div>
 
       <style>{`
-  *{box-sizing:border-box}
-  .page{
-    min-height:100vh;display:grid;place-items:center;
-    background:#f3ede6;color:#3b2f2f;padding:24px
-  }
-  .card{
-    width:420px;background:#fff;color:#3b2f2f;
-    border:1px solid #e7e1d9;border-radius:16px;
-    padding:24px 20px;box-shadow:0 8px 20px rgba(0,0,0,.05)
-  }
-  .sub{color:#7c7068;margin-top:4px}
-  .form{display:grid;gap:12px;margin-top:12px}
-  .field{display:grid;gap:6px}
-  .input{
-    width:100%;background:#fff;color:#3b2f2f;
-    border:1px solid #d9d3cc;padding:12px 10px;
-    border-radius:10px;outline:none;transition:.15s border,.15s box-shadow
-  }
-  .input:focus{
-    border-color:#b88656;box-shadow:0 0 0 3px rgba(184,134,86,.25)
-  }
-  .input.invalid{
-    border-color:#ef4444;box-shadow:0 0 0 3px rgba(239,68,68,.15)
-  }
-  .hint-error{color:#b00020;font-size:12.5px;margin-top:-2px}
-  .primary.big-btn{
-    margin-top:6px;padding:12px 14px;
-    background:linear-gradient(180deg,#c69c6d,#a47848);
-    border:1px solid #a47848;color:#fff;
-    border-radius:10px;font-weight:600;
-    transition:.2s filter
-  }
-  .primary.big-btn:hover{filter:brightness(1.05)}
-  .toast{margin-bottom:14px;padding:10px 12px;border-radius:10px}
-  .toast-error{
-    background:rgba(239,68,68,.08);
-    border:1px solid rgba(239,68,68,.35);color:#7f1d1d
-  }
-  .toast-success{
-    background:rgba(172,133,98,.1);
-    border:1px solid rgba(172,133,98,.35);color:#5d3e22
-  }
-  input:-webkit-autofill,
-  input:-webkit-autofill:focus{
-    -webkit-box-shadow:0 0 0 30px #fff inset !important;
-    -webkit-text-fill-color:#3b2f2f !important;
-    caret-color:#3b2f2f;
-  }
-`}</style>
+        *{box-sizing:border-box}
+        .page{
+          min-height:100vh;display:grid;place-items:center;
+          background:#f3ede6;color:#3b2f2f;padding:24px
+        }
+        .card{
+          width:420px;background:#fff;color:#3b2f2f;
+          border:1px solid #e7e1d9;border-radius:16px;
+          padding:24px 20px;box-shadow:0 8px 20px rgba(0,0,0,.05)
+        }
+        .sub{color:#7c7068;margin-top:4px}
+        .form{display:grid;gap:12px;margin-top:12px}
+        .field{display:grid;gap:6px}
+        .input{
+          width:100%;background:#fff;color:#3b2f2f;
+          border:1px solid #d9d3cc;padding:12px 10px;
+          border-radius:10px;outline:none;transition:.15s border,.15s box-shadow
+        }
+        .input:focus{
+          border-color:#b88656;box-shadow:0 0 0 3px rgba(184,134,86,.25)
+        }
+        .input.invalid{
+          border-color:#ef4444;box-shadow:0 0 0 3px rgba(239,68,68,.15)
+        }
+        .hint-error{color:#b00020;font-size:12.5px;margin-top:-2px}
+        .primary.big-btn{
+          margin-top:6px;padding:12px 14px;
+          background:linear-gradient(180deg,#c69c6d,#a47848);
+          border:1px solid #a47848;color:#fff;
+          border-radius:10px;font-weight:600;
+          transition:.2s filter
+        }
+        .primary.big-btn:hover{filter:brightness(1.05)}
+        .toast{margin-bottom:14px;padding:10px 12px;border-radius:10px}
+        .toast-error{
+          background:rgba(239,68,68,.08);
+          border:1px solid rgba(239,68,68,.35);color:#7f1d1d
+        }
+        .toast-success{
+          background:rgba(172,133,98,.1);
+          border:1px solid rgba(172,133,98,.35);color:#5d3e22
+        }
+        input:-webkit-autofill,
+        input:-webkit-autofill:focus{
+          -webkit-box-shadow:0 0 0 30px #fff inset !important;
+          -webkit-text-fill-color:#3b2f2f !important;
+          caret-color:#3b2f2f;
+        }
+      `}</style>
     </div>
   );
 }
+

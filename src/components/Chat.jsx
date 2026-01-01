@@ -1,223 +1,175 @@
 // src/components/Chat.jsx
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { fetchSessionMessages, sendMessage } from "../api/chat";
 import { useAuth } from "../auth/useAuth";
-import { api } from "../api/client";
-import { fetchSessionMessages } from "../api/chat";
 
-// helper: message with unique id
-function mkMsg(sender, text) {
-  return {
-    id: crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`,
-    sender, // "user" | "bot" | "system"
-    text,
-    ts: Date.now(),
-  };
-}
 
-/**
- * Reusable Chat UI
- * Props:
- * - initialMessages?: Array<{ id?: string, sender: "bot" | "user" | "system", text: string }>
- * - onSend?: (text: string) => Promise<{ reply?: string }>
- * - activeSessionId?: number | null
- */
-export default function Chat({
-  initialMessages = [],
-  onSend,
-  activeSessionId,
-  onSessionChange,
-  onNewSessionCreated,
-}) {
-  const { logout } = useAuth?.() ?? {};
-  const navigate = useNavigate();
-
-  // история сообщений
-  const [messages, setMessages] = useState(
-    (initialMessages.length
-      ? initialMessages
-      : [mkMsg("bot", "Hi, ask me")]
-    ).map((m) => (m?.id ? m : mkMsg(m.sender, m.text)))
-  );
-  const [text, setText] = useState("");
+export default function Chat({ activeSessionId, onNewSessionCreated }) {
+  const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [inputVal, setInputVal] = useState("");
   const [error, setError] = useState("");
 
-  // автоскролл вниз
   const endRef = useRef(null);
-  useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, loading]);
+  const shouldAutoScroll = useRef(false);
 
-  // --------- Загружаем сообщения при смене activeSessionId ---------
+  const navigate = useNavigate();
+  const { logout } = useAuth();
+
+  // автоскролл вниз ТОЛЬКО при отправке
   useEffect(() => {
-    // если сессия не выбрана (новый чат) — показываем дефолтное приветствие
+    if (shouldAutoScroll.current) {
+      endRef.current?.scrollIntoView({ behavior: "smooth" });
+      shouldAutoScroll.current = false;
+    }
+  }, [messages]);
+
+  // загрузка истории при выборе сессии
+  useEffect(() => {
+    shouldAutoScroll.current = false;
+    setError("");
+
     if (!activeSessionId) {
-      setMessages(
-        (initialMessages.length
-          ? initialMessages
-          : [mkMsg("bot", "Hi, ask me")]
-        ).map((m) => (m?.id ? m : mkMsg(m.sender, m.text)))
-      );
+      setMessages([]);
       return;
     }
 
-    async function loadSession() {
-      setLoading(true);
-      setError("");
-      try {
-        const history = await fetchSessionMessages(activeSessionId);
+    let cancelled = false;
+    setLoading(true);
 
-        // history: или массив, или объект с messages — подстраиваемся
-        const raw = Array.isArray(history)
-          ? history
-          : Array.isArray(history?.messages)
-          ? history.messages
-          : [];
+    fetchSessionMessages(activeSessionId)
+      .then((data) => {
+        if (cancelled) return;
 
-        const mapped = raw.map((m) => ({
-          ...m,
-          id: m.id || crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`,
-          sender:
-            m.sender ||
-            (m.role === "USER" || m.role === "user" ? "user" : "bot"),
-          text: m.content || m.text || "",
+        const arr = Array.isArray(data) ? data : data?.messages || [];
+        const mapped = arr.map((m, idx) => ({
+          id: m.id ?? `${Date.now()}-${idx}`,
+          role:
+            (m.role || m.sender || "bot").toLowerCase() === "user"
+              ? "user"
+              : "bot",
+          content: m.content ?? m.text ?? "",
         }));
 
         setMessages(mapped);
-      } catch (e) {
-        console.error(e);
-        setError("Failed to load conversation history");
-      } finally {
-        setLoading(false);
-      }
-    }
+      })
+      .catch((err) => {
+        const status = err?.response?.status;
+        if (status === 401) {
+          logout?.();
+          navigate("/login");
+          setError(err?.message || "Please login again");
+          return;
+        }
+        // ✅ важно для теста: показать err.message (например "Network down")
+        setError(err?.message || "Chat error. Please try again.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
 
-    loadSession();
-  }, [activeSessionId]); // ВАЖНО: только activeSessionId, без initialMessages
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSessionId, navigate]);
 
-  // --------- дефолтная отправка на /api/chat (JWT добавит интерсептор) ---------
-  const defaultOnSend = async (msg) => {
+  const handleSend = async (e) => {
+    e?.preventDefault?.();
+
+    const text = inputVal.trim();
+    if (!text) return;
+
+    setError("");
+    shouldAutoScroll.current = true;
+
+    setInputVal("");
+
+    const optimistic = { id: "tmp-" + Date.now(), role: "user", content: text };
+    setMessages((prev) => [...prev, optimistic]);
+
     try {
-      const payload = {
-        message: msg,
-        // если есть активная сессия — отправляем её id
-        ...(activeSessionId != null ? { chatSessionId: activeSessionId } : {}),
-      };
+      const data = await sendMessage(text, activeSessionId);
 
-      const { data } = await api.post("/api/chat", payload);
-
-      // читаем id сессии из ответа бэка (ChatResponse.chatSessionId)
-      const newSessionId = data?.chatSessionId;
-
-      // если бэк создал новую сессию — сообщаем наверх
-      if (newSessionId && !activeSessionId) {
-        onNewSessionCreated?.(newSessionId);
-        onSessionChange?.(newSessionId);
+      const newSid = data?.chatSessionId;
+      if (!activeSessionId && newSid) {
+        onNewSessionCreated?.(newSid);
       }
 
-      return { reply: data?.reply ?? "(empty response)" };
-    } catch (e) {
-      const status = e?.response?.status;
+      setMessages((prev) => [
+        ...prev,
+        { id: "bot-" + Date.now(), role: "bot", content: data?.reply ?? "(empty)" },
+      ]);
+    } catch (err) {
+      const status = err?.response?.status;
+
+      setMessages((prev) => prev.filter((m) => m.id !== optimistic.id));
+      setInputVal(text);
+
       if (status === 401) {
         logout?.();
         navigate("/login");
-        throw new Error("401 Unauthorized. Пожалуйста, войдите заново.");
+        setError(err?.message || "Please login again");
+        return;
       }
-      const body = e?.response?.data ?? e.message ?? "запрос отклонён";
-      throw new Error(`Ошибка${status ? " " + status : ""}: ${String(body)}`);
+
+      setError(err?.message || "Chat error. Please try again.");
     }
   };
 
-  // --------- обработчик отправки сообщения ---------
-  async function handleSend() {
-    const msg = text.trim();
-    if (!msg || loading) return;
-
-    setError("");
-    setText("");
-    setMessages((prev) => [...prev, mkMsg("user", msg)]);
-    setLoading(true);
-
-    try {
-      const handler = onSend || defaultOnSend;
-      const res = await handler(msg);
-      const reply = res?.reply ?? "(no reply)";
-      setMessages((prev) => [...prev, mkMsg("bot", reply)]);
-    } catch (e) {
-      setError(e?.message || "Failed to send message");
-      // отдельный системный пузырь, чтобы тесты ловили именно его
-      setMessages((prev) => [
-        ...prev,
-        mkMsg("system", "Chat error. Please try again later."),
-      ]);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  // Enter = send; Shift+Enter = newline
-  function onKeyDown(e) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  }
-
   return (
-    <div className="chat-container">
-      <header className="chat-header">
-        <h2>AI Chat</h2>
-      </header>
-
-      <main className="chat-window" aria-live="polite">
-        {messages.map((m) => (
-          <div key={m.id} className={`msg ${m.sender}`}>
-            <div
-              className="bubble"
-              // помечаем только системный пузырь ошибки
-              {...(m.sender === "system" && m.text.startsWith("Chat error")
-                ? { "data-testid": "error-bubble", role: "status" }
-                : {})}
-            >
-              {m.text}
-            </div>
-          </div>
-        ))}
-
-        {loading && (
-          <div className="msg bot">
-            <div className="bubble">Typing...</div>
+    <div className="chat-interface">
+      <div className="messages-area">
+        {!activeSessionId && !loading && messages.length === 0 && (
+          <div className="empty-placeholder">
+            <h3>Welcome!</h3>
+            <p>Start a new conversation by typing below.</p>
           </div>
         )}
 
-        {error && <div className="error">{error}</div>}
-        <div ref={endRef} />
-      </main>
+        {messages.map((m) => (
+          <div
+            key={m.id}
+            className={`msg-row ${m.role === "user" ? "msg-user" : "msg-ai"}`}
+          >
+            <div className="msg-bubble">{m.content}</div>
+          </div>
+        ))}
 
-      <footer className="chat-input-area">
-        <textarea
-          className="chat-input"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={onKeyDown}
-          placeholder="Write message…"
-          rows={1}
-          disabled={loading}
-          aria-label="message…"
+        {loading && <div className="loading-spinner">Loading chat...</div>}
+        <div ref={endRef} />
+      </div>
+
+      {error && (
+        <div role="alert" style={{ color: "red", marginTop: 8 }}>
+          {error}
+        </div>
+      )}
+
+      <form onSubmit={handleSend} className="input-area">
+        <input
+          value={inputVal}
+          onChange={(e) => setInputVal(e.target.value)}
+          placeholder="Type your message..."
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              handleSend(e);
+            }
+          }}
         />
+
         <button
           className="send-btn"
-          onClick={handleSend}
-          disabled={loading || !text.trim()}
+          type="submit"
+          disabled={!inputVal.trim()}
           aria-label="Send"
         >
-          {loading ? "Sending…" : "Send"}
+          ➤
         </button>
-      </footer>
+      </form>
     </div>
   );
 }
-
 
 
