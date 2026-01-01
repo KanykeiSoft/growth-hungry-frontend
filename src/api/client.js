@@ -1,37 +1,51 @@
 // src/api/client.js
 import axios from "axios";
 
-// Достаём токен (можно заменить на геттер из AuthContext при желании)
 function getToken() {
   return localStorage.getItem("token");
 }
 
-// Базовый URL: из .env или локальный бэкенд
-const baseURL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+const baseURL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 
 export const api = axios.create({
-  baseURL,       // пример: http://localhost:8080
-  timeout: 30000 // 30s
+  baseURL,
+  timeout: 30000,
 });
 
-// Добавляем токен ко всем запросам автоматически
-api.interceptors.request.use((config) => {
-  const token = getToken()
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  if (!config.headers["Content-Type"]) {
-    config.headers["Content-Type"] = "application/json";
-  }
-  return config;
-});
+api.interceptors.request.use(
+  (config) => {
+    const token = getToken();
 
-// (Опционально) Глобальная обработка ошибок
+    config.headers = config.headers || {};
+
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+
+    if (!config.headers["Content-Type"]) {
+      config.headers["Content-Type"] = "application/json";
+    }
+
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    // Здесь можно централизованно ловить 401/403 и т.п.
+    const status = err?.response?.status;
+
+    if (status === 401 || status === 403) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+
+      // чтобы не зациклиться, если уже на /login
+      if (window.location.pathname !== "/login") {
+        window.location.href = "/login";
+      }
+    }
+
     return Promise.reject(err);
   }
 );

@@ -35,9 +35,19 @@ export function AuthProvider({ children }) {
       newUser = arg2;
     }
     if (!newToken) throw new Error("Authorization token not received");
+  
+    // ВАЖНО: записываем сразу в localStorage
+    localStorage.setItem("token", newToken);
+  
     setToken(newToken);
-    if (newUser) setUser(newUser);
+  
+    if (newUser) {
+      localStorage.setItem("user", JSON.stringify(newUser));
+      setUser(newUser);
+    }
   }
+  
+  
 
   function logout() {
     setToken(null);

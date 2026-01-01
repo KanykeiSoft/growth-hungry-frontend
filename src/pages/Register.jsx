@@ -1,9 +1,8 @@
 // src/pages/Register.jsx
-import React from "react";
-import { useState } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8080";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -20,6 +19,7 @@ export default function Register() {
   function onChange(e) {
     const { name, value } = e.target;
     setForm((s) => ({ ...s, [name]: value }));
+
     if (fieldErrors[name]) {
       setFieldErrors((prev) => {
         const copy = { ...prev };
@@ -32,7 +32,6 @@ export default function Register() {
   }
 
   function normalizePayload(f) {
-    // лёгкая нормализация перед отправкой
     return {
       username: f.username?.trim(),
       email: f.email?.trim().toLowerCase(),
@@ -67,13 +66,14 @@ export default function Register() {
     setGlobalErrors([]);
     setSuccessMessage("");
 
-    // фронт-валидация
     const fe = {};
     if (!form.username?.trim()) fe.username = ["Required"];
     if (!form.email?.trim()) fe.email = ["Required"];
     if (!form.password?.trim()) fe.password = ["Required"];
-    if (form.password && form.password.length < 6)
+    if (form.password && form.password.length < 6) {
       fe.password = [...(fe.password || []), "Min length is 6"];
+    }
+
     if (Object.keys(fe).length) {
       setFieldErrors(fe);
       setGlobalErrors(["Please correct the highlighted fields"]);
@@ -95,20 +95,17 @@ export default function Register() {
       if (res.ok) {
         const msg = data?.message || "Account created. Please log in.";
         setSuccessMessage(msg);
-        // мгновенный переход на /login с flash-сообщением
+
         navigate("/login", {
           replace: true,
-          state: {
-            flash: { type: "success", text: msg },
-          },
+          state: { flash: { type: "success", text: msg } },
         });
         return;
       }
 
-      // 409 — уже существует username/email
       if (res.status === 409) {
         setGlobalErrors([data?.message || "Username or email already exists"]);
-        // если backend прислал detail по полям — подсветим
+
         const fe2 = {};
         if (data?.errors && typeof data.errors === "object") {
           for (const [k, v] of Object.entries(data.errors)) {
@@ -119,7 +116,6 @@ export default function Register() {
         return;
       }
 
-      // 422/400 — ошибки валидации формы
       if (res.status === 422 || res.status === 400) {
         const fe2 = {};
         if (data?.errors && typeof data.errors === "object") {
@@ -237,7 +233,6 @@ export default function Register() {
           border-color:#ef4444;box-shadow:0 0 0 3px rgba(239,68,68,.15)
         }
         .hint-error{color:#b00020;font-size:12.5px;margin-top:-2px}
-
         .primary.big-btn{
           margin-top:6px;padding:14px 16px;
           background:linear-gradient(180deg,#c69c6d,#a47848);
@@ -245,7 +240,6 @@ export default function Register() {
           transition:.2s filter
         }
         .primary.big-btn:hover{filter:brightness(1.05)}
-
         .toast{margin-bottom:14px;padding:10px 12px;border-radius:10px}
         .toast-error{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.35);color:#7f1d1d}
         .toast-success{background:rgba(172,133,98,.1);border:1px solid rgba(172,133,98,.35);color:#5d3e22}
