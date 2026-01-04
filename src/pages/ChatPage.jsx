@@ -15,7 +15,7 @@ export default function ChatPage() {
     setRefreshSidebar((prev) => prev + 1);
   }, []);
 
-  // когда пользователь выбирает сессию в sidebar
+  
   const handleSelectSession = useCallback((sessionId) => {
     setActiveSessionId(sessionId);
   }, []);

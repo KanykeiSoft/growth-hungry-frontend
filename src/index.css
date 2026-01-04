@@ -309,3 +309,28 @@ button[disabled] { opacity: .6; cursor: not-allowed; }
   cursor: pointer;
 }
 .send-btn:disabled { opacity: 0.5; cursor: default; }
+
+/* Container for the chat item */
+.chat-sidebar li {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+/* The delete button (hidden by default) */
+.delete-btn {
+  opacity: 0;
+  transition: opacity 0.2s;
+  position: absolute;
+  right: 10px;
+}
+
+/* Show the delete button when hovering over the list item */
+.chat-sidebar li:hover .delete-btn {
+  opacity: 1;
+}
+
+/* Make sure the chat text doesn't overlap the button */
+.chat-item {
+  padding-right: 40px; 
+}

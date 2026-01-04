@@ -19,6 +19,8 @@ export async function fetchSessionMessages(sessionId) {
 export async function sendMessage(message, chatSessionId = null) {
   if (!message || !message.trim()) throw new Error("Message is empty");
 
+  
+
   const payload = {
     message: message.trim(),
     ...(chatSessionId != null ? { chatSessionId } : {}),
@@ -27,3 +29,8 @@ export async function sendMessage(message, chatSessionId = null) {
   const res = await api.post("/api/chat", payload);
   return res.data; // ожидаем { reply, chatSessionId, ... }
 }
+
+export const deleteSession = async (sessionId) => {
+  const res = await api.delete(`/api/chat/sessions/${sessionId}`);
+  return res.data;
+};
