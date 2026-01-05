@@ -4,7 +4,6 @@ import { useNavigate } from "react-router-dom";
 import { fetchSessionMessages, sendMessage } from "../api/chat";
 import { useAuth } from "../auth/useAuth";
 
-
 export default function Chat({ activeSessionId, onNewSessionCreated }) {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -62,7 +61,6 @@ export default function Chat({ activeSessionId, onNewSessionCreated }) {
           setError(err?.message || "Please login again");
           return;
         }
-        // ✅ важно для теста: показать err.message (например "Network down")
         setError(err?.message || "Chat error. Please try again.");
       })
       .finally(() => {
@@ -72,7 +70,7 @@ export default function Chat({ activeSessionId, onNewSessionCreated }) {
     return () => {
       cancelled = true;
     };
-  }, [activeSessionId, navigate]);
+  }, [activeSessionId, navigate, logout]); // ✅ добавили logout в deps
 
   const handleSend = async (e) => {
     e?.preventDefault?.();
@@ -98,7 +96,11 @@ export default function Chat({ activeSessionId, onNewSessionCreated }) {
 
       setMessages((prev) => [
         ...prev,
-        { id: "bot-" + Date.now(), role: "bot", content: data?.reply ?? "(empty)" },
+        {
+          id: "bot-" + Date.now(),
+          role: "bot",
+          content: data?.reply ?? "(empty)",
+        },
       ]);
     } catch (err) {
       const status = err?.response?.status;
@@ -171,5 +173,3 @@ export default function Chat({ activeSessionId, onNewSessionCreated }) {
     </div>
   );
 }
-
-

@@ -16,15 +16,9 @@ export default function Login() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const fromRef = useRef(location.state?.from || "/chat");
-  const cameFromProtected = location.state?.fromProtected === true;
-
-  useEffect(() => {
-    if (cameFromProtected) {
-      setGlobalErrors(["You must be logged in to access the chat."]);
-      window.history.replaceState({}, document.title, "/login");
-    }
-  }, [cameFromProtected]);
+  // ✅ если пришли с protected страницы — вернем туда
+  // ✅ если просто открыли /login — отправим на /dashboard после логина
+  const fromRef = useRef(location.state?.from || "/dashboard");
 
   // если уже авторизованы — сразу уводим
   useEffect(() => {
@@ -55,7 +49,7 @@ export default function Login() {
       try {
         return await res.json();
       } catch {
-        // fallthrough
+        // ignore
       }
     }
     try {
@@ -77,7 +71,6 @@ export default function Login() {
     setSuccessMessage("");
 
     const fe = {};
-    // Changed: validate email
     if (!form.email?.trim()) fe.email = ["Required"];
     if (!form.password?.trim()) fe.password = ["Required"];
     if (Object.keys(fe).length) {
@@ -88,7 +81,6 @@ export default function Login() {
 
     setLoading(true);
     try {
-      // Backend expects { email, password }
       const res = await fetch(`${API_BASE}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -108,10 +100,12 @@ export default function Login() {
 
         const user = data?.user || data?.profile || null;
 
+        // ✅ важно: login({token,user}) должен сохранять token
         login({ token, user });
+
         setSuccessMessage(data?.message || "Logged in successfully");
 
-        // Надёжно: редирект сразу, не ждём эффекта
+        // ✅ редирект туда, откуда пришли (или /dashboard)
         navigate(fromRef.current, { replace: true });
         return;
       }
@@ -254,4 +248,3 @@ export default function Login() {
     </div>
   );
 }
-
