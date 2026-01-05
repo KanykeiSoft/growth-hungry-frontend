@@ -3,7 +3,7 @@ import React from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
 
-export default function ProtectedRoute({ children = null }) {
+export default function ProtectedRoute() {
   const { isAuthenticated, token } = useAuth();
   const location = useLocation();
 
@@ -15,13 +15,12 @@ export default function ProtectedRoute({ children = null }) {
       <Navigate
         to="/login"
         replace
-        state={{ from: location, fromProtected: true}}
+        state={{ from: location.pathname }}
       />
     );
   }
 
-  return children ?? <Outlet />;
+  return <Outlet />;
 }
-
 
 
