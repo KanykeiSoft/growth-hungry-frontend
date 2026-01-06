@@ -7,6 +7,9 @@
   --brand-dark: #D18C47;
   --err: #CC3333;
   --ok: #3FA66A;
+
+  /* если navbar другой высоты — поменяй здесь */
+  --nav-h: 60px;
 }
 
 /* base */
@@ -21,7 +24,9 @@ html, body, #root {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
-/* layout */
+/* ------------------------------
+   AUTH / FORMS (Login/Register)
+-------------------------------- */
 .page {
   min-height: 100%;
   display: flex;
@@ -30,7 +35,6 @@ html, body, #root {
   padding: 32px 16px;
 }
 
-/* card */
 .card {
   width: 100%;
   max-width: 450px;
@@ -55,7 +59,6 @@ html, body, #root {
   text-align: center;
 }
 
-/* form */
 .form { display: grid; gap: 14px; }
 
 .field label {
@@ -88,7 +91,6 @@ html, body, #root {
   margin-top: 4px;
 }
 
-/* button */
 button.primary {
   margin-top: 8px;
   width: 100%;
@@ -122,23 +124,44 @@ button[disabled] { opacity: .6; cursor: not-allowed; }
   font-weight: 600;
   border: 1px solid rgba(0,0,0,0.06);
   box-shadow: 0 6px 18px rgba(0,0,0,0.1);
+  z-index: 9999;
 }
 
-.toast-success {
-  background:#EAF7EE;
-  color:#276B42;
+.toast-success { background:#EAF7EE; color:#276B42; }
+.toast-error   { background:#FBEAEA; color:#B13A3A; }
+
+/* ------------------------------
+   HOME
+-------------------------------- */
+.home {
+  height: 70vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
 }
 
-.toast-error {
-  background:#FBEAEA;
-  color:#B13A3A;
+.home h1 {
+  font-size: 48px;
+  margin: 0 0 10px;
 }
 
-/* Chat Layout */
+.subtitle {
+  font-size: 20px;
+  color: #666;
+  margin: 0;
+}
+
+/* ------------------------------
+   FULL CHAT PAGE (with sidebar)
+-------------------------------- */
 .chat-page {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+
+  /* чтобы не было лишнего скролла из-за navbar */
+  height: calc(100vh - var(--nav-h));
   background: #fff;
 }
 
@@ -153,6 +176,7 @@ button[disabled] { opacity: .6; cursor: not-allowed; }
 }
 
 .chat-topbar h2 { margin: 0; font-size: 18px; color: var(--brand-dark); }
+
 .gh-btn {
   background: transparent;
   border: 1px solid var(--brand);
@@ -166,7 +190,7 @@ button[disabled] { opacity: .6; cursor: not-allowed; }
 .chat-layout {
   display: flex;
   flex: 1;
-  overflow: hidden; /* prevent page scroll */
+  overflow: hidden;
 }
 
 /* Sidebar */
@@ -180,7 +204,7 @@ button[disabled] { opacity: .6; cursor: not-allowed; }
   overflow-y: auto;
 }
 
-.chat-sidebar h3 { margin-top: 0; font-size: 16px; margin-bottom: 12px; }
+.chat-sidebar h3 { margin: 0 0 12px; font-size: 16px; }
 
 .new-chat-btn {
   width: 100%;
@@ -191,10 +215,11 @@ button[disabled] { opacity: .6; cursor: not-allowed; }
   border-radius: 6px;
   margin-bottom: 16px;
   cursor: pointer;
-  font-weight: 500;
+  font-weight: 600;
 }
 .new-chat-btn:hover { background: var(--brand-dark); }
 
+/* Если у тебя список сессий кнопками */
 .chat-item {
   width: 100%;
   background: transparent;
@@ -204,33 +229,41 @@ button[disabled] { opacity: .6; cursor: not-allowed; }
   text-align: left;
   cursor: pointer;
   transition: .2s;
+  padding-right: 40px; /* место под delete */
 }
+
 .chat-item:hover { background: rgba(0,0,0,0.03); }
-.chat-item-active { background: #fff; border-color: #eee; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+.chat-item-active {
+  background: #fff;
+  border-color: #eee;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
 
 .chat-time { font-size: 11px; color: var(--muted); margin-top: 4px; }
 
-/* Main Chat Area */
+/* Обёртка для chat item + delete (рекомендую использовать div) */
+.chat-item-wrap {
+  position: relative;
+}
+
+.delete-btn {
+  opacity: 0;
+  transition: opacity 0.2s;
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.chat-item-wrap:hover .delete-btn { opacity: 1; }
+
+/* Main chat area */
 .chat-main {
   flex: 1;
   display: flex;
   flex-direction: column;
   background: #fff;
-  position: relative;
-}
-
-.chat-shell {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-
-.chat-container {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
+  overflow: hidden;
 }
 
 .chat-interface {
@@ -254,12 +287,9 @@ button[disabled] { opacity: .6; cursor: not-allowed; }
   color: var(--muted);
 }
 
-.msg-row {
-  display: flex;
-  width: 100%;
-}
+.msg-row { display: flex; width: 100%; }
 .msg-user { justify-content: flex-end; }
-.msg-ai { justify-content: flex-start; }
+.msg-ai   { justify-content: flex-start; }
 
 .msg-bubble {
   max-width: 70%;
@@ -297,6 +327,7 @@ button[disabled] { opacity: .6; cursor: not-allowed; }
   outline: none;
   font-size: 15px;
 }
+
 .input-area input:focus { border-color: var(--brand); }
 
 .send-btn {
@@ -310,60 +341,30 @@ button[disabled] { opacity: .6; cursor: not-allowed; }
 }
 .send-btn:disabled { opacity: 0.5; cursor: default; }
 
-/* Container for the chat item */
-.chat-sidebar li {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-/* The delete button (hidden by default) */
-.delete-btn {
-  opacity: 0;
-  transition: opacity 0.2s;
-  position: absolute;
-  right: 10px;
-}
-
-/* Show the delete button when hovering over the list item */
-.chat-sidebar li:hover .delete-btn {
-  opacity: 1;
-}
-
-/* Make sure the chat text doesn't overlap the button */
-.chat-item {
-  padding-right: 40px; 
-}
-
-/* src/index.css */
-
-/* --- LAYOUT: Courses + Chat --- */
-
-/* Main container that splits the screen into 2 parts */
+/* ------------------------------
+   DASHBOARD: Courses + Mini Chat
+-------------------------------- */
 .study-layout {
-  display: flex; /* Puts the columns side-by-side */
-  height: calc(100vh - 80px); /* Full screen height minus the header */
-  background-color: #F0F0E8; /* Your beige background */
+  display: flex;
+  height: calc(100vh - var(--nav-h));
+  background-color: #F0F0E8;
   padding: 20px;
-  gap: 20px; /* Space between the two columns */
-  overflow: hidden; /* Prevents the whole page from scrolling */
+  gap: 20px;
+  overflow: hidden;
 }
 
-/* --- LEFT COLUMN: COURSES --- */
 .courses-section {
-  flex: 3; /* Takes up 75% of the screen */
-  overflow-y: auto; /* Allows scrolling inside this column */
+  flex: 3;
+  overflow-y: auto;
   padding-right: 10px;
 }
 
-/* Header for the courses section */
 .courses-header h2 {
   font-size: 28px;
   color: #1a1a1a;
   margin-bottom: 5px;
 }
 
-/* Grid layout for the course cards */
 .courses-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -372,7 +373,6 @@ button[disabled] { opacity: .6; cursor: not-allowed; }
   padding-bottom: 40px;
 }
 
-/* Individual Course Card style */
 .course-card {
   background: white;
   border-radius: 16px;
@@ -382,10 +382,7 @@ button[disabled] { opacity: .6; cursor: not-allowed; }
   box-shadow: 0 4px 12px rgba(0,0,0,0.05);
   transition: transform 0.2s;
 }
-
-.course-card:hover {
-  transform: translateY(-5px); /* Animation when hovering */
-}
+.course-card:hover { transform: translateY(-5px); }
 
 .course-image {
   height: 140px;
@@ -399,8 +396,8 @@ button[disabled] { opacity: .6; cursor: not-allowed; }
 }
 
 .course-card h3 {
-  color: #2F5233; /* Your dark green */
-  margin-bottom: 10px;
+  color: #2F5233;
+  margin: 0 0 10px;
   font-size: 18px;
 }
 
@@ -408,95 +405,47 @@ button[disabled] { opacity: .6; cursor: not-allowed; }
   color: #666;
   font-size: 14px;
   flex-grow: 1;
-  margin-bottom: 15px;
+  margin: 0 0 15px;
 }
 
 .start-btn {
-  background-color: #D4A373; /* Your sand color */
+  background-color: #D4A373;
   color: white;
   border: none;
   padding: 12px;
   border-radius: 10px;
   cursor: pointer;
-  font-weight: 600;
+  font-weight: 700;
   width: 100%;
 }
 
-/* --- RIGHT COLUMN: CHAT --- */
+/* Mini chat block */
 .chat-section {
-  flex: 1; /* Takes up 25% of the screen */
-  min-width: 320px; /* Minimum width so it doesn't get too small */
+  flex: 1;
+  min-width: 320px;
   background: white;
   border-radius: 20px;
   display: flex;
   flex-direction: column;
   box-shadow: -5px 0 20px rgba(0,0,0,0.05);
   border: 1px solid #e0e0e0;
+  overflow: hidden;
 }
 
-.chat-header {
-  padding: 15px 20px;
-  border-bottom: 1px solid #eee;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-weight: bold;
-  color: #2F5233;
-}
-
-.chat-messages-area {
-  flex: 1;
-  background-color: #fafafa;
-  padding: 15px;
-  overflow-y: auto;
-}
-
-.chat-input-area {
-  padding: 15px;
-  border-top: 1px solid #eee;
-  display: flex;
-  gap: 10px;
-}
-
-.chat-input-area input {
-  flex: 1;
-  padding: 10px 15px;
-  border-radius: 20px;
-  border: 1px solid #ddd;
-  outline: none;
-}
-
-.chat-input-area button {
-  width: 40px;
-  height: 40px;
-  background: #2F5233;
-  color: white;
-  border: none;
-  border-radius: 50%;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* Добавь это в конец src/index.css */
-
-/* Заставляем твой компонент чата растягиваться на всю высоту правой колонки */
 .chat-section .chat-interface {
   display: flex;
   flex-direction: column;
-  height: 100%; /* Полная высота */
+  height: 100%;
 }
 
-/* Область сообщений должна занимать все свободное место */
+/* ограничиваем только внутри мини-чата */
 .chat-section .messages-area {
   flex: 1;
   overflow-y: auto;
   padding: 15px;
-  background-color: #fafafa; /* Светлый фон для переписки */
+  background-color: #fafafa;
 }
 
-/* Убираем лишние отступы, если они есть у формы ввода */
 .chat-section .input-area {
   margin-top: auto;
   border-top: 1px solid #eee;
