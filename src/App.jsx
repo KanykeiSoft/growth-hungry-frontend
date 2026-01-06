@@ -5,6 +5,7 @@ import { Routes, Route, Link, Navigate } from "react-router-dom";
 import Register from "./pages/Register.jsx";
 import Login from "./pages/Login.jsx";
 import DashboardPage from "./pages/DashboardPage.jsx";
+import Home from "./pages/Home.jsx";
 import ProtectedRoute from "./routes/ProtectedRoute.jsx";
 import { useAuth } from "./auth/useAuth";
 
@@ -43,7 +44,7 @@ export default function App() {
 
   return (
     <div className="app-root">
-      {/* МЕНЮ (всегда показываем) */}
+      {/* NAVBAR */}
       <nav style={navStyle}>
         <Link
           to={user ? "/dashboard" : "/"}
@@ -55,22 +56,12 @@ export default function App() {
         <div style={linkGroupStyle}>
           {!user ? (
             <>
-              <Link to="/login" style={linkStyle}>
-                Login
-              </Link>
-              <Link to="/register" style={linkStyle}>
-                Register
-              </Link>
+              <Link to="/login" style={linkStyle}>Login</Link>
+              <Link to="/register" style={linkStyle}>Register</Link>
             </>
           ) : (
             <>
-              <Link to="/dashboard" style={linkStyle}>
-                Dashboard
-              </Link>
-
-              {/* если у тебя будет отдельная страница чата - добавим позже */}
-              {/* <Link to="/chat" style={linkStyle}>AI Chat</Link> */}
-
+              <Link to="/dashboard" style={linkStyle}>Dashboard</Link>
               <button
                 onClick={logout}
                 style={{ ...btnLikeLink, ...linkStyle, color: "#d9534f" }}
@@ -82,34 +73,24 @@ export default function App() {
         </div>
       </nav>
 
-      {/* КОНТЕНТ */}
+      {/* ROUTES */}
       <div className="app-main">
         <Routes>
           {/* Home */}
           <Route
             path="/"
-            element={
-              user ? (
-                <Navigate to="/dashboard" replace />
-              ) : (
-                <div style={{ padding: 40, textAlign: "center" }}>
-                  <h1>Welcome to Life Assistant! 🚀</h1>
-                  <p>
-                    <Link to="/login">Login</Link> to start.
-                  </p>
-                </div>
-              )
-            }
+            element={user ? <Navigate to="/dashboard" replace /> : <Home />}
           />
 
-          <Route path="/register" element={<Register />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
 
           {/* Protected */}
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<DashboardPage />} />
           </Route>
 
+          {/* fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
