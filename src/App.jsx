@@ -1,6 +1,6 @@
 // src/App.jsx
 import React from "react";
-import { Routes, Route, Link, Navigate } from "react-router-dom";
+import { Routes, Route, Link, Navigate, useNavigate } from "react-router-dom";
 
 import Register from "./pages/Register.jsx";
 import Login from "./pages/Login.jsx";
@@ -40,21 +40,22 @@ const btnLikeLink = {
 };
 
 export default function App() {
-  const { user, logout } = useAuth();
+  const { logout, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
 
   return (
     <div className="app-root">
       {/* NAVBAR */}
       <nav style={navStyle}>
         <Link
-          to={user ? "/dashboard" : "/"}
+          to={isAuthenticated ? "/dashboard" : "/"}
           style={{ ...linkStyle, fontSize: "18px", fontWeight: 800 }}
         >
           🌱 Life Assistant
         </Link>
 
         <div style={linkGroupStyle}>
-          {!user ? (
+          {!isAuthenticated ? (
             <>
               <Link to="/login" style={linkStyle}>Login</Link>
               <Link to="/register" style={linkStyle}>Register</Link>
@@ -63,7 +64,10 @@ export default function App() {
             <>
               <Link to="/dashboard" style={linkStyle}>Dashboard</Link>
               <button
-                onClick={logout}
+                onClick={() => {
+                  logout();
+                  navigate("/login"); // чтобы сразу вернуло на логин
+                }}
                 style={{ ...btnLikeLink, ...linkStyle, color: "#d9534f" }}
               >
                 Logout
@@ -79,7 +83,7 @@ export default function App() {
           {/* Home */}
           <Route
             path="/"
-            element={user ? <Navigate to="/dashboard" replace /> : <Home />}
+            element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Home />}
           />
 
           <Route path="/login" element={<Login />} />
