@@ -4,6 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { fetchSessionMessages, sendMessage } from "../api/chat";
 import { useAuth } from "../auth/useAuth";
 import "../styles/chat.css";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 
 export default function Chat({ activeSessionId, onNewSessionCreated }) {
@@ -134,7 +136,11 @@ export default function Chat({ activeSessionId, onNewSessionCreated }) {
             key={m.id}
             className={`msg-row ${m.role === "user" ? "msg-user" : "msg-ai"}`}
           >
-            <div className="msg-bubble">{m.content}</div>
+            <div className="msg-bubble markdown">
+               <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {m.content}
+                 </ReactMarkdown>
+             </div>
           </div>
         ))}
 
