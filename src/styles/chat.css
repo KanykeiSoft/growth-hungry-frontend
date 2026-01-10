@@ -79,12 +79,14 @@
   flex: 1;
   display: flex;
   padding-left: 12px;
+  min-height: 0; 
 }
 
 /* ===== Карточка ===== */
 .chat-shell {
   width: 100%;
   height: 100%;
+  min-height: 0;     
   display: grid;
   place-items: center;
   padding: 24px;
@@ -92,6 +94,9 @@
 
 .chat-shell > .chat-container {
   width: min(900px, 95vw);
+  height: calc(100vh - 140px);
+  max-height: calc(100vh - 140px);
+  min-height: 0;
 
   background: var(--card-bg);
   border: 1px solid var(--card-br);
@@ -100,7 +105,7 @@
   padding: 12px;
 
   display: grid;
-  /* ГЛАВНОЕ: средний блок должен уметь сжиматься → minmax(0,1fr) */
+
   grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 8px;
 
@@ -236,4 +241,38 @@
   line-height: 1.45;
   white-space: pre-wrap;   /* важно */
   word-break: break-word;
+}
+
+/* ===== FIX for Chat.jsx (dashboard chat panel) ===== */
+
+/* Chat component wrapper */
+.chat-interface {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* критично */
+}
+
+/* Scroll should be here */
+.messages-area {
+  flex: 1 1 auto;
+  min-height: 0;      /* критично */
+  overflow-y: auto;   /* скролл только внутри чата */
+  padding: 12px;
+}
+
+/* Input stays at bottom */
+.input-area {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 10px;
+  padding: 12px;
+  border-top: 1px solid var(--line);
+  background: var(--card-bg);
+}
+
+.messages-area .msg-bubble {
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }

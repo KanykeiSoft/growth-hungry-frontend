@@ -3,6 +3,10 @@ import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchSessionMessages, sendMessage } from "../api/chat";
 import { useAuth } from "../auth/useAuth";
+import "../styles/chat.css";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+
 
 export default function Chat({ activeSessionId, onNewSessionCreated }) {
   const [messages, setMessages] = useState([]);
@@ -45,9 +49,7 @@ export default function Chat({ activeSessionId, onNewSessionCreated }) {
         const mapped = arr.map((m, idx) => ({
           id: m.id ?? `${Date.now()}-${idx}`,
           role:
-            (m.role || m.sender || "bot").toLowerCase() === "user"
-              ? "user"
-              : "bot",
+            (m.role || m.sender || "bot").toLowerCase() === "user" ? "user" : "bot",
           content: m.content ?? m.text ?? "",
         }));
 
@@ -70,7 +72,7 @@ export default function Chat({ activeSessionId, onNewSessionCreated }) {
     return () => {
       cancelled = true;
     };
-  }, [activeSessionId, navigate, logout]); // ✅ добавили logout в deps
+  }, [activeSessionId, navigate, logout]);
 
   const handleSend = async (e) => {
     e?.preventDefault?.();
@@ -134,7 +136,11 @@ export default function Chat({ activeSessionId, onNewSessionCreated }) {
             key={m.id}
             className={`msg-row ${m.role === "user" ? "msg-user" : "msg-ai"}`}
           >
-            <div className="msg-bubble">{m.content}</div>
+            <div className="msg-bubble markdown">
+               <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {m.content}
+                 </ReactMarkdown>
+             </div>
           </div>
         ))}
 
@@ -143,7 +149,7 @@ export default function Chat({ activeSessionId, onNewSessionCreated }) {
       </div>
 
       {error && (
-        <div role="alert" style={{ color: "red", marginTop: 8 }}>
+        <div className="chat-error" role="alert">
           {error}
         </div>
       )}
