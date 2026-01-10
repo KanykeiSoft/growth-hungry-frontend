@@ -3,6 +3,8 @@ import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchSessionMessages, sendMessage } from "../api/chat";
 import { useAuth } from "../auth/useAuth";
+import "../styles/chat.css";
+
 
 export default function Chat({ activeSessionId, onNewSessionCreated }) {
   const [messages, setMessages] = useState([]);
@@ -45,9 +47,7 @@ export default function Chat({ activeSessionId, onNewSessionCreated }) {
         const mapped = arr.map((m, idx) => ({
           id: m.id ?? `${Date.now()}-${idx}`,
           role:
-            (m.role || m.sender || "bot").toLowerCase() === "user"
-              ? "user"
-              : "bot",
+            (m.role || m.sender || "bot").toLowerCase() === "user" ? "user" : "bot",
           content: m.content ?? m.text ?? "",
         }));
 
@@ -70,7 +70,7 @@ export default function Chat({ activeSessionId, onNewSessionCreated }) {
     return () => {
       cancelled = true;
     };
-  }, [activeSessionId, navigate, logout]); // ✅ добавили logout в deps
+  }, [activeSessionId, navigate, logout]);
 
   const handleSend = async (e) => {
     e?.preventDefault?.();
@@ -143,7 +143,7 @@ export default function Chat({ activeSessionId, onNewSessionCreated }) {
       </div>
 
       {error && (
-        <div role="alert" style={{ color: "red", marginTop: 8 }}>
+        <div className="chat-error" role="alert">
           {error}
         </div>
       )}
