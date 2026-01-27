@@ -8,6 +8,8 @@ import DashboardPage from "./pages/DashboardPage.jsx";
 import Home from "./pages/Home.jsx";
 import ProtectedRoute from "./routes/ProtectedRoute.jsx";
 import { useAuth } from "./auth/useAuth";
+import CoursePage from "./pages/CoursePage.jsx";
+import SectionPage from "./pages/SectionPage.jsx";
 
 // --- стили ---
 const navStyle = {
@@ -89,10 +91,13 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
 
-          {/* Protected */}
           <Route element={<ProtectedRoute />}>
-            <Route path="/dashboard" element={<DashboardPage />} />
-          </Route>
+  <Route path="/dashboard" element={<DashboardPage />} />
+
+  {/* NEW: pages inside course */}
+  <Route path="/courses/:courseId" element={<CoursePage />} />
+  <Route path="/courses/:courseId/sections/:sectionId" element={<SectionPage />} />
+</Route>
 
           {/* fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
