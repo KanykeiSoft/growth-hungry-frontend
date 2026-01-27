@@ -98,7 +98,7 @@ describe("Chat.jsx (Vitest) - section chat", () => {
     await waitFor(() => expect(sendSectionMessageMock).toHaveBeenCalledTimes(1));
 
     // ✅ проверяем аргументы безопасно
-    const [secId, text, sid] = sendSectionMessageMock.mock.calls[0];
+    const [secId, text] = sendSectionMessageMock.mock.calls[0];
     expect(secId).toBe(1);
     expect(text).toBe("1 + 2 =");
   
@@ -117,7 +117,7 @@ describe("Chat.jsx (Vitest) - section chat", () => {
 
     await waitFor(() => expect(sendSectionMessageMock).toHaveBeenCalledTimes(1));
 
-    const [secId, text, sid] = sendSectionMessageMock.mock.calls[0];
+    const [secId, text] = sendSectionMessageMock.mock.calls[0];
     expect(secId).toBe(1);
     expect(text).toBe("ping");
   });
