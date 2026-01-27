@@ -1,15 +1,9 @@
-// src/pages/DashboardPage.jsx
-import React, { useState, useCallback } from "react";
-import Chat from "../components/Chat";
-
-import "../styles/dashboard.css"; // ✅ добавили
+import React from "react";
+import { useNavigate } from "react-router-dom";
+import "../styles/dashboard.css";
 
 export default function DashboardPage() {
-  const [activeSessionId, setActiveSessionId] = useState(null);
-
-  const handleNewSessionCreated = useCallback((newSessionId) => {
-    setActiveSessionId(newSessionId);
-  }, []);
+  const navigate = useNavigate();
 
   const courses = [
     { id: 1, title: "Personal Growth Fundamentals", description: "Build a strong foundation for self-improvement and discipline.", image: "🌱" },
@@ -19,10 +13,18 @@ export default function DashboardPage() {
     { id: 5, title: "Financial Literacy", description: "Understand the basics of budgeting and investing.", image: "💰" },
   ];
 
+  const handleStartCourse = (courseId) => {
+    // Минимально: отправляем на "первую секцию" курса.
+    // Потом можно заменить на реальный firstSectionId из API.
+    const firstSectionId = 1;
+
+    navigate(`/courses/${courseId}/sections/${firstSectionId}`);
+  };
+
   return (
     <div className="dash">
-      {/* LEFT */}
-      <section className="dash__left">
+      {/* LEFT (сделаем единственной колонкой) */}
+      <section className="dash__left" style={{ width: "100%" }}>
         <header className="dash__header">
           <h2>Available Courses</h2>
           <p>Select a course to view details or start learning.</p>
@@ -34,32 +36,18 @@ export default function DashboardPage() {
               <div className="course__icon">{course.image}</div>
               <h3 className="course__title">{course.title}</h3>
               <p className="course__desc">{course.description}</p>
-              <button className="course__btn" type="button">
+
+              <button
+                className="course__btn"
+                type="button"
+                onClick={() => handleStartCourse(course.id)}
+              >
                 Start Course
               </button>
             </article>
           ))}
         </div>
       </section>
-
-      {/* RIGHT */}
-      <aside className="dash__right">
-        <div className="chatShell">
-          <div className="chatShell__header">
-            <div className="chatShell__title">AI Assistant</div>
-            <div className="chatShell__status">
-              <span className="dot" /> Online
-            </div>
-          </div>
-
-          <div className="chatShell__body">
-            <Chat
-              activeSessionId={activeSessionId}
-              onNewSessionCreated={handleNewSessionCreated}
-            />
-          </div>
-        </div>
-      </aside>
     </div>
   );
 }

@@ -5,11 +5,13 @@
  */
 import { vi, beforeEach, describe, it, expect } from "vitest";
 
-// ---------- Моки ДОЛЖНЫ быть до любых импортов тестируемых модулей ----------
+// ---------- Моки ДОЛЖНЫ быть до импортов ----------
 
 const navigateMock = vi.fn();
 const logoutMock = vi.fn();
-const postMock = vi.fn();
+
+const fetchSectionChatMock = vi.fn();
+const sendSectionMessageMock = vi.fn();
 
 // react-router-dom: подменяем только useNavigate, остальное — реальное
 vi.mock("react-router-dom", async () => {
@@ -33,9 +35,10 @@ vi.mock("../../auth/useAuth", () => ({
   }),
 }));
 
-// API-клиент
-vi.mock("../../api/client", () => ({
-  api: { post: (...args) => postMock(...args) },
+// ✅ Мокаем новый API для section chat
+vi.mock("../../api/chat", () => ({
+  fetchSectionChat: (...args) => fetchSectionChatMock(...args),
+  sendSectionMessage: (...args) => sendSectionMessageMock(...args),
 }));
 
 // -------------------- Обычные импорты после моков --------------------
@@ -50,21 +53,41 @@ function renderWithRouter(ui, { route = "/chat" } = {}) {
   return render(<MemoryRouter initialEntries={[route]}>{ui}</MemoryRouter>);
 }
 
-describe("Chat.jsx (Vitest)", () => {
+describe("Chat.jsx (Vitest) - section chat", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    postMock.mockResolvedValue({ data: { reply: "Hello from AI" } });
+
+    // по умолчанию: загрузка секции возвращает sessionId и пустые сообщения
+    fetchSectionChatMock.mockResolvedValue({
+      chatSessionId: 10,
+      messages: [],
+    });
+
+    // по умолчанию: отправка сообщения возвращает reply
+    sendSectionMessageMock.mockResolvedValue({
+      reply: "Hello from AI",
+      chatSessionId: 10,
+    });
   });
 
-  it("renders input and Send button inside authenticated context", () => {
-    renderWithRouter(<Chat />);
-    // используем устойчивые роли, чтобы не зависеть от плейсхолдеров/текста
+  it("renders input and Send button", () => {
+    renderWithRouter(<Chat sectionId={1} />);
     expect(screen.getByRole("textbox")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /send/i })).toBeInTheDocument();
   });
 
+  it("loads section chat on mount", async () => {
+    renderWithRouter(<Chat sectionId={1} />);
+
+    await waitFor(() => expect(fetchSectionChatMock).toHaveBeenCalledTimes(1));
+    expect(fetchSectionChatMock).toHaveBeenCalledWith(1);
+  });
+
   it("types and clicks Send → calls API and shows bot reply", async () => {
-    renderWithRouter(<Chat />);
+    renderWithRouter(<Chat sectionId={1} />);
+
+    // дождаться загрузки истории, чтобы sessionId установился
+    await waitFor(() => expect(fetchSectionChatMock).toHaveBeenCalledTimes(1));
 
     const input = screen.getByRole("textbox");
     const button = screen.getByRole("button", { name: /send/i });
@@ -72,38 +95,44 @@ describe("Chat.jsx (Vitest)", () => {
     fireEvent.change(input, { target: { value: "1 + 2 =" } });
     fireEvent.click(button);
 
-    await waitFor(() => expect(postMock).toHaveBeenCalledTimes(1));
-    const [url, body] = postMock.mock.calls[0];
-    expect(url).toBe("/api/chat");
-    expect(body).toEqual({ message: "1 + 2 =" });
+    await waitFor(() => expect(sendSectionMessageMock).toHaveBeenCalledTimes(1));
 
-    // ответ от бота
+    // ✅ проверяем аргументы безопасно
+    const [secId, text] = sendSectionMessageMock.mock.calls[0];
+    expect(secId).toBe(1);
+    expect(text).toBe("1 + 2 =");
+  
+
     expect(await screen.findByText(/hello from ai/i)).toBeInTheDocument();
   });
 
   it("Enter (without Shift) sends the message", async () => {
-    renderWithRouter(<Chat />);
-    const input = screen.getByRole("textbox");
+    renderWithRouter(<Chat sectionId={1} />);
 
+    await waitFor(() => expect(fetchSectionChatMock).toHaveBeenCalledTimes(1));
+
+    const input = screen.getByRole("textbox");
     fireEvent.change(input, { target: { value: "ping" } });
     fireEvent.keyDown(input, { key: "Enter", code: "Enter", charCode: 13 });
 
-    await waitFor(() => expect(postMock).toHaveBeenCalledTimes(1));
-    const [, body] = postMock.mock.calls[0];
-    expect(body).toEqual({ message: "ping" });
+    await waitFor(() => expect(sendSectionMessageMock).toHaveBeenCalledTimes(1));
+
+    const [secId, text] = sendSectionMessageMock.mock.calls[0];
+    expect(secId).toBe(1);
+    expect(text).toBe("ping");
   });
 
-  it("handles 401: logout + navigate('/login') and shows error message", async () => {
-    postMock.mockRejectedValueOnce({
+  it("handles 401: logout + navigate('/login') and shows error", async () => {
+    // 401 на отправке
+    sendSectionMessageMock.mockRejectedValueOnce({
       response: { status: 401, data: "Unauthorized" },
       message: "Unauthorized",
     });
 
-    renderWithRouter(<Chat />);
+    renderWithRouter(<Chat sectionId={1} />);
+
     const input = screen.getByRole("textbox");
     fireEvent.change(input, { target: { value: "secret" } });
-
-    // отправляем Enter (как у тебя было)
     fireEvent.keyDown(input, { key: "Enter", code: "Enter" });
 
     await waitFor(() => {
@@ -111,36 +140,25 @@ describe("Chat.jsx (Vitest)", () => {
       expect(navigateMock).toHaveBeenCalledWith("/login");
     });
 
-    // устойчиво: ищем любой текст ошибки
-    expect(
-      await screen.findByText(/unauthorized|chat error|try again|error/i)
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
   });
 
   it("shows error message on non-401 failure (network etc.)", async () => {
-    // 1) API падает не 401
-    postMock.mockRejectedValueOnce(new Error("Network down"));
+    sendSectionMessageMock.mockRejectedValueOnce(new Error("Network down"));
 
-    renderWithRouter(<Chat />);
+    renderWithRouter(<Chat sectionId={1} />);
 
-    // 2) Вводим сообщение
     const input = screen.getByRole("textbox");
     fireEvent.change(input, { target: { value: "hi" } });
 
-    // ✅ ВАЖНО: отправляем через кнопку, чтобы гарантировать submit
     const button = screen.getByRole("button", { name: /send/i });
     fireEvent.click(button);
 
-    // 3) Убеждаемся, что запрос реально ушёл
-    await waitFor(() => expect(postMock).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(sendSectionMessageMock).toHaveBeenCalledTimes(1));
 
-    // 4) Проверяем, что появляется какой-то текст ошибки (общий или конкретный)
-    expect(
-      await screen.findByText(
-        /network down|chat error|please try again|try again|error/i
-      )
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
   });
 });
+
 
 
