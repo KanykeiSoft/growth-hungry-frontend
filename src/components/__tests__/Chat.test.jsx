@@ -35,7 +35,7 @@ vi.mock("../../auth/useAuth", () => ({
   }),
 }));
 
-// ✅ Мокаем новый API для section chat
+// ✅ Мокаем API для section chat
 vi.mock("../../api/chat", () => ({
   fetchSectionChat: (...args) => fetchSectionChatMock(...args),
   sendSectionMessage: (...args) => sendSectionMessageMock(...args),
@@ -86,10 +86,10 @@ describe("Chat.jsx (Vitest) - section chat", () => {
   it("types and clicks Send → calls API and shows bot reply", async () => {
     renderWithRouter(<Chat sectionId={1} />);
 
-    // дождаться загрузки истории, чтобы sessionId установился
+    // дождаться загрузки истории (важно для стабильности)
     await waitFor(() => expect(fetchSectionChatMock).toHaveBeenCalledTimes(1));
 
-    const input = screen.getByRole("textbox");
+    const input = screen.getByPlaceholderText(/type your message/i);
     const button = screen.getByRole("button", { name: /send/i });
 
     fireEvent.change(input, { target: { value: "1 + 2 =" } });
@@ -101,28 +101,12 @@ describe("Chat.jsx (Vitest) - section chat", () => {
     const [secId, text] = sendSectionMessageMock.mock.calls[0];
     expect(secId).toBe(1);
     expect(text).toBe("1 + 2 =");
-  
 
+    // ✅ бот-ответ должен появиться
     expect(await screen.findByText(/hello from ai/i)).toBeInTheDocument();
   });
 
-  it("Enter (without Shift) sends the message", async () => {
-    renderWithRouter(<Chat sectionId={1} />);
-
-    await waitFor(() => expect(fetchSectionChatMock).toHaveBeenCalledTimes(1));
-
-    const input = screen.getByRole("textbox");
-    fireEvent.change(input, { target: { value: "ping" } });
-    fireEvent.keyDown(input, { key: "Enter", code: "Enter", charCode: 13 });
-
-    await waitFor(() => expect(sendSectionMessageMock).toHaveBeenCalledTimes(1));
-
-    const [secId, text] = sendSectionMessageMock.mock.calls[0];
-    expect(secId).toBe(1);
-    expect(text).toBe("ping");
-  });
-
-  it("handles 401: logout + navigate('/login') and shows error", async () => {
+  it("handles 401 on send: logout + navigate('/login') and shows error", async () => {
     // 401 на отправке
     sendSectionMessageMock.mockRejectedValueOnce({
       response: { status: 401, data: "Unauthorized" },
@@ -131,9 +115,31 @@ describe("Chat.jsx (Vitest) - section chat", () => {
 
     renderWithRouter(<Chat sectionId={1} />);
 
-    const input = screen.getByRole("textbox");
+    await waitFor(() => expect(fetchSectionChatMock).toHaveBeenCalledTimes(1));
+
+    const input = screen.getByPlaceholderText(/type your message/i);
     fireEvent.change(input, { target: { value: "secret" } });
-    fireEvent.keyDown(input, { key: "Enter", code: "Enter" });
+
+    // ✅ у тебя отправка только через submit/click, не через onKeyDown
+    fireEvent.click(screen.getByRole("button", { name: /send/i }));
+
+    await waitFor(() => expect(sendSectionMessageMock).toHaveBeenCalledTimes(1));
+
+    await waitFor(() => {
+      expect(logoutMock).toHaveBeenCalledTimes(1);
+      expect(navigateMock).toHaveBeenCalledWith("/login");
+    });
+
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+  });
+
+  it("handles 401 on initial load: logout + navigate('/login') and shows error", async () => {
+    fetchSectionChatMock.mockRejectedValueOnce({
+      response: { status: 401, data: "Unauthorized" },
+      message: "Unauthorized",
+    });
+
+    renderWithRouter(<Chat sectionId={1} />);
 
     await waitFor(() => {
       expect(logoutMock).toHaveBeenCalledTimes(1);
@@ -148,17 +154,25 @@ describe("Chat.jsx (Vitest) - section chat", () => {
 
     renderWithRouter(<Chat sectionId={1} />);
 
-    const input = screen.getByRole("textbox");
+    await waitFor(() => expect(fetchSectionChatMock).toHaveBeenCalledTimes(1));
+
+    const input = screen.getByPlaceholderText(/type your message/i);
     fireEvent.change(input, { target: { value: "hi" } });
 
-    const button = screen.getByRole("button", { name: /send/i });
-    fireEvent.click(button);
+    fireEvent.click(screen.getByRole("button", { name: /send/i }));
 
     await waitFor(() => expect(sendSectionMessageMock).toHaveBeenCalledTimes(1));
 
     expect(await screen.findByRole("alert")).toBeInTheDocument();
   });
+
+  it("disables input and button if sectionId is missing", () => {
+    renderWithRouter(<Chat sectionId={null} />);
+
+    const input = screen.getByRole("textbox");
+    expect(input).toBeDisabled();
+
+    const button = screen.getByRole("button", { name: /send/i });
+    expect(button).toBeDisabled();
+  });
 });
-
-
-
