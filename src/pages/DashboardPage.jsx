@@ -34,8 +34,10 @@ export default function DashboardPage() {
             "Failed to load courses"
         );
       } finally {
-        if (!alive) return;
-        setLoading(false);
+        if (!alive) {
+          setLoading(false);
+        }
+        
       }
     })();
 
