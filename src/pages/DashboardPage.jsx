@@ -1,48 +1,121 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { api } from "../api/client";
 import "../styles/dashboard.css";
 
 export default function DashboardPage() {
   const navigate = useNavigate();
 
-  const courses = [
-    { id: 1, title: "Personal Growth Fundamentals", description: "Build a strong foundation for self-improvement and discipline.", image: "🌱" },
-    { id: 2, title: "Effective Communication", description: "Master the art of clear, impactful, and empathetic communication.", image: "💬" },
-    { id: 3, title: "Mindfulness for Beginners", description: "Learn to live in the present moment and reduce anxiety.", image: "🧘" },
-    { id: 4, title: "Time Management", description: "Stop procrastinating and get more done in less time.", image: "⏳" },
-    { id: 5, title: "Financial Literacy", description: "Understand the basics of budgeting and investing.", image: "💰" },
-  ];
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [startingCourseId, setStartingCourseId] = useState(null);
 
-  const handleStartCourse = (courseId) => {
-    // Минимально: отправляем на "первую секцию" курса.
-    // Потом можно заменить на реальный firstSectionId из API.
-    const firstSectionId = 1;
+  // 1️⃣ Загружаем курсы из БД
+  useEffect(() => {
+    let alive = true;
 
-    navigate(`/courses/${courseId}/sections/${firstSectionId}`);
+    (async () => {
+      try {
+        setLoading(true);
+        setErrorMsg("");
+
+        // 🔹 ОЖИДАЕМ: GET /api/courses
+        const res = await api.get("/api/courses");
+        const list = Array.isArray(res.data) ? res.data : [];
+
+        if (!alive) return;
+        setCourses(list);
+      } catch (e) {
+        if (!alive) return;
+        setErrorMsg(
+          e?.response?.data?.message ||
+            e?.message ||
+            "Failed to load courses"
+        );
+      } finally {
+        if (!alive) return;
+        setLoading(false);
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  // 2️⃣ Start Course → берём первую секцию с бэка
+  const handleStartCourse = async (courseId) => {
+    try {
+      setStartingCourseId(courseId);
+      setErrorMsg("");
+
+      // 🔹 ОЖИДАЕМ: GET /api/courses/{courseId}/sections
+      const res = await api.get(`/api/courses/${courseId}/sections`);
+      const sections = Array.isArray(res.data) ? res.data : [];
+
+      if (!sections.length) {
+        alert("У этого курса пока нет секций");
+        return;
+      }
+
+      // берём первую секцию (по id)
+      const firstSection = [...sections].sort(
+        (a, b) => (a.id ?? 0) - (b.id ?? 0)
+      )[0];
+
+      if (!firstSection?.id) {
+        alert("Не удалось определить первую секцию");
+        return;
+      }
+
+      navigate(`/courses/${courseId}/sections/${firstSection.id}`);
+    } catch (e) {
+      setErrorMsg(
+        e?.response?.data?.message ||
+          e?.message ||
+          "Failed to start course"
+      );
+    } finally {
+      setStartingCourseId(null);
+    }
   };
 
   return (
     <div className="dash">
-      {/* LEFT (сделаем единственной колонкой) */}
       <section className="dash__left" style={{ width: "100%" }}>
         <header className="dash__header">
           <h2>Available Courses</h2>
           <p>Select a course to view details or start learning.</p>
         </header>
 
+        {loading && <div style={{ padding: 12 }}>Loading...</div>}
+
+        {!loading && errorMsg && (
+          <div style={{ padding: 12, color: "crimson" }}>{errorMsg}</div>
+        )}
+
+        {!loading && !errorMsg && courses.length === 0 && (
+          <div style={{ padding: 12 }}>No courses yet.</div>
+        )}
+
         <div className="dash__grid">
           {courses.map((course) => (
             <article key={course.id} className="course">
-              <div className="course__icon">{course.image}</div>
+              <div className="course__icon">📘</div>
+
               <h3 className="course__title">{course.title}</h3>
-              <p className="course__desc">{course.description}</p>
+              <p className="course__desc">{course.description || ""}</p>
 
               <button
                 className="course__btn"
                 type="button"
+                disabled={startingCourseId === course.id}
                 onClick={() => handleStartCourse(course.id)}
               >
-                Start Course
+                {startingCourseId === course.id
+                  ? "Starting..."
+                  : "Start Course"}
               </button>
             </article>
           ))}

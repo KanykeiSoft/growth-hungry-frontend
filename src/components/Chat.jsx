@@ -50,7 +50,10 @@ export default function Chat({ sectionId }) {
 
         const mapped = arr.map((m, idx) => ({
           id: m.id ?? `${Date.now()}-${idx}`,
-          role: (m.role || m.sender || "bot").toLowerCase() === "user" ? "user" : "bot",
+          role:
+            (m.role || m.sender || "bot").toLowerCase() === "user"
+              ? "user"
+              : "bot",
           content: m.content ?? m.text ?? "",
         }));
 
@@ -108,6 +111,7 @@ export default function Chat({ sectionId }) {
     } catch (err) {
       const status = err?.response?.status;
 
+      // убираем optimistic сообщение, возвращаем текст назад в input
       setMessages((prev) => prev.filter((m) => m.id !== optimistic.id));
       setInputVal(text);
 
@@ -157,27 +161,16 @@ export default function Chat({ sectionId }) {
         </div>
       )}
 
+      {/* ✅ ТОЛЬКО onSubmit. УБРАЛИ onKeyDown, чтобы не было двойной отправки */}
       <form onSubmit={handleSend} className="input-area">
         <input
           value={inputVal}
           onChange={(e) => setInputVal(e.target.value)}
           placeholder="Type your message..."
           disabled={!sectionId}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              handleSend(e);
-            }
-          }}
         />
-
-        <button
-          className="send-btn"
-          type="submit"
-          disabled={!sectionId || !inputVal.trim()}
-          aria-label="Send"
-        >
-          ➤
+        <button type="submit" disabled={!sectionId || !inputVal.trim()}>
+          Send
         </button>
       </form>
     </div>
