@@ -32,8 +32,10 @@ export default function CoursePage() {
           "Failed to load sections"
         );
       } finally {
-        if (!alive) return;
-        setLoading(false);
+        if (!alive){
+          setLoading(false);
+        }
+       
       }
     })();
 
