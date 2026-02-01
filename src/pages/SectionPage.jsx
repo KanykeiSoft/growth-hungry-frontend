@@ -1,46 +1,83 @@
-import React from "react";
+// src/pages/SectionPage.jsx
+import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import { api } from "../api/client";
 import Chat from "../components/Chat";
-import "../styles/dashboard.css"; // используем те же стили (dash, chatShell и т.д.)
 
 export default function SectionPage() {
-  const { courseId, sectionId } = useParams();
+  const { sectionId } = useParams();
+  const [section, setSection] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+
+    (async () => {
+      try {
+        const res = await api.get(`/api/sections/${sectionId}`);
+        if (!alive) return;
+        setSection(res.data);
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [sectionId]);
+
+  if (loading) return <div style={{ padding: 24 }}>Loading…</div>;
+  if (!section) return <div style={{ padding: 24 }}>Section not found</div>;
 
   return (
-    <div className="dash">
-      {/* LEFT: Section content */}
-      <section className="dash__left">
-        <header className="dash__header">
-          <h2>Section</h2>
-          <p>
-            courseId: <b>{courseId}</b> • sectionId: <b>{sectionId}</b>
-          </p>
-        </header>
-
-        <div className="course" style={{ marginTop: 16 }}>
-          <h3 className="course__title">Section content</h3>
-          <p className="course__desc">
-            Тут будет текст/видео/код этого section. (Пока заглушка)
-          </p>
+    <div style={{ padding: 24 }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "minmax(0, 1fr) 420px",
+          gap: 24,
+          alignItems: "start",
+        }}
+      >
+        {/* LEFT */}
+        <div>
+          <h2 style={{ marginTop: 0 }}>Section</h2>
+          <div>{section.content}</div>
         </div>
-      </section>
 
-      {/* RIGHT: AI Assistant bound to section */}
-      <aside className="dash__right">
-        <div className="chatShell">
-          <div className="chatShell__header">
-            <div className="chatShell__title">AI Assistant</div>
-            <div className="chatShell__status">
-              <span className="dot" /> Online
+        {/* RIGHT */}
+        <aside style={{ position: "sticky", top: 24 }}>
+          <div
+            style={{
+              background: "#fff",
+              border: "1px solid #eee",
+              borderRadius: 16,
+              overflow: "hidden",
+              boxShadow: "0 6px 20px rgba(0,0,0,0.06)",
+              height: "calc(100vh - 120px)", // чтобы чат не расползался
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
+            <div
+              style={{
+                padding: "12px 14px",
+                borderBottom: "1px solid #f0f0f0",
+                fontWeight: 700,
+              }}
+            >
+              AI Assistant
+            </div>
+
+            {/* сам чат */}
+            <div style={{ flex: 1, minHeight: 0 }}>
+              <Chat sectionId={sectionId} />
             </div>
           </div>
-
-          {/* ВАЖНО: передаём sectionId как контекст */}
-          <div className="chatShell__body">
-            <Chat sectionId={sectionId} courseId={courseId} />
-          </div>
-        </div>
-      </aside>
+        </aside>
+      </div>
     </div>
   );
 }
+
