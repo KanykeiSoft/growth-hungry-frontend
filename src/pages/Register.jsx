@@ -44,7 +44,9 @@ export default function Register() {
     if (ct.includes("application/json")) {
       try {
         return await res.json();
-      } catch {}
+      } catch (e) {
+        console.error(e);
+      }
     }
     try {
       const text = await res.text();
