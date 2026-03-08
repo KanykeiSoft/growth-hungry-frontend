@@ -27,11 +27,30 @@ export default function SectionPage() {
     };
   }, [sectionId]);
 
-  if (loading) return <div style={{ padding: 24 }}>Loading…</div>;
-  if (!section) return <div style={{ padding: 24 }}>Section not found</div>;
+  if (loading) {
+    return (
+      <div style={{ padding: 24, color: "#6B7280", background: "#FFFFFF" }}>
+        Loading…
+      </div>
+    );
+  }
+
+  if (!section) {
+    return (
+      <div style={{ padding: 24, color: "#6B7280", background: "#FFFFFF" }}>
+        Section not found
+      </div>
+    );
+  }
 
   return (
-    <div style={{ padding: 24 }}>
+    <div
+      style={{
+        padding: 24,
+        background: "#F8FAFC",
+        minHeight: "100vh",
+      }}
+    >
       <div
         style={{
           display: "grid",
@@ -41,37 +60,65 @@ export default function SectionPage() {
         }}
       >
         {/* LEFT */}
-        <div>
-          <h2 style={{ marginTop: 0 }}>Section</h2>
-          <div>{section.content}</div>
+        <div
+          style={{
+            background: "#FFFFFF",
+            border: "1px solid #E5E7EB",
+            borderRadius: 16,
+            padding: 24,
+            boxShadow: "0 6px 20px rgba(0,0,0,0.04)",
+          }}
+        >
+          <h2
+            style={{
+              marginTop: 0,
+              marginBottom: 16,
+              color: "#111827",
+              fontSize: 24,
+            }}
+          >
+            Section
+          </h2>
+
+          <div
+            style={{
+              color: "#374151",
+              fontSize: 16,
+              lineHeight: 1.7,
+            }}
+          >
+            {section.content}
+          </div>
         </div>
 
         {/* RIGHT */}
         <aside style={{ position: "sticky", top: 24 }}>
           <div
             style={{
-              background: "#fff",
-              border: "1px solid #eee",
+              background: "#FFFFFF",
+              border: "1px solid #E5E7EB",
               borderRadius: 16,
               overflow: "hidden",
-              boxShadow: "0 6px 20px rgba(0,0,0,0.06)",
-              height: "calc(100vh - 120px)", // чтобы чат не расползался
+              boxShadow: "0 8px 24px rgba(37,99,235,0.08)",
+              height: "calc(100vh - 120px)",
               display: "flex",
               flexDirection: "column",
             }}
           >
             <div
               style={{
-                padding: "12px 14px",
-                borderBottom: "1px solid #f0f0f0",
+                padding: "14px 16px",
+                borderBottom: "1px solid #E5E7EB",
                 fontWeight: 700,
+                fontSize: 18,
+                color: "#111827",
+                background: "#FFFFFF",
               }}
             >
               AI Assistant
             </div>
 
-            {/* сам чат */}
-            <div style={{ flex: 1, minHeight: 0 }}>
+            <div style={{ flex: 1, minHeight: 0, background: "#FFFFFF" }}>
               <Chat sectionId={sectionId} />
             </div>
           </div>
@@ -80,4 +127,3 @@ export default function SectionPage() {
     </div>
   );
 }
-
