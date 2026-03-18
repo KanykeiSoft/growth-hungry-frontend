@@ -1,6 +1,12 @@
-// src/App.jsx
 import React from "react";
-import { Routes, Route, Link, Navigate, useNavigate } from "react-router-dom";
+import {
+  Routes,
+  Route,
+  Link,
+  Navigate,
+  useNavigate,
+  useLocation,
+} from "react-router-dom";
 
 import Register from "./pages/Register.jsx";
 import Login from "./pages/Login.jsx";
@@ -8,6 +14,7 @@ import DashboardPage from "./pages/DashboardPage.jsx";
 import Home from "./pages/Home.jsx";
 import ProtectedRoute from "./routes/ProtectedRoute.jsx";
 import { useAuth } from "./auth/useAuth";
+import CoursesPage from "./pages/CoursesPage.jsx";
 import CoursePage from "./pages/CoursePage.jsx";
 import SectionPage from "./pages/SectionPage.jsx";
 
@@ -71,38 +78,45 @@ const btnLikeLink = {
 export default function App() {
   const { logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const hideTopNav =
+    location.pathname.startsWith("/courses") ||
+    location.pathname.startsWith("/sections");
 
   return (
     <div className="app-root">
-      <nav style={navStyle}>
-        <div style={navInnerStyle}>
-          <div style={emptyLeftStyle} />
+      {!hideTopNav && (
+        <nav style={navStyle}>
+          <div style={navInnerStyle}>
+            <div style={emptyLeftStyle} />
 
-          <div style={linkGroupStyle}>
-            {!isAuthenticated ? (
-              <Link to="/login" style={primaryLinkStyle}>
-                Sign In
-              </Link>
-            ) : (
-              <>
-                <Link to="/dashboard" style={linkStyle}>
-                  Dashboard
+            <div style={linkGroupStyle}>
+              {!isAuthenticated ? (
+                <Link to="/login" style={primaryLinkStyle}>
+                  Sign In
                 </Link>
+              ) : (
+                <>
+                  <Link to="/dashboard" style={linkStyle}>
+                    Dashboard
+                  </Link>
 
-                <button
-                  onClick={() => {
-                    logout();
-                    navigate("/login");
-                  }}
-                  style={{ ...btnLikeLink, ...linkStyle, color: "#DC2626" }}
-                >
-                  Logout
-                </button>
-              </>
-            )}
+                  <button
+                    onClick={() => {
+                      logout();
+                      navigate("/login");
+                    }}
+                    style={{ ...btnLikeLink, ...linkStyle, color: "#DC2626" }}
+                  >
+                    Logout
+                  </button>
+                </>
+              )}
+            </div>
           </div>
-        </div>
-      </nav>
+        </nav>
+      )}
 
       <div className="app-main">
         <Routes>
@@ -116,6 +130,7 @@ export default function App() {
 
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/courses" element={<CoursesPage />} />
             <Route path="/courses/:courseId" element={<CoursePage />} />
             <Route
               path="/courses/:courseId/sections/:sectionId"
