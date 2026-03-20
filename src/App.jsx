@@ -17,6 +17,7 @@ import { useAuth } from "./auth/useAuth";
 import CoursesPage from "./pages/CoursesPage.jsx";
 import CoursePage from "./pages/CoursePage.jsx";
 import SectionPage from "./pages/SectionPage.jsx";
+import CourseSectionsPage from "./pages/CourseSectionsPage.jsx";
 
 const navStyle = {
   position: "sticky",
@@ -132,10 +133,8 @@ export default function App() {
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/courses" element={<CoursesPage />} />
             <Route path="/courses/:courseId" element={<CoursePage />} />
-            <Route
-              path="/courses/:courseId/sections/:sectionId"
-              element={<SectionPage />}
-            />
+            <Route path="/courses/:courseId/sections" element={<CourseSectionsPage />} />
+            <Route path="/sections/:sectionId" element={<SectionPage />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

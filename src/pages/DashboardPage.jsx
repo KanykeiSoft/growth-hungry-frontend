@@ -169,7 +169,7 @@ export default function DashboardPage() {
         return;
       }
 
-      navigate(`/courses/${courseId}/sections/${firstSection.id}`);
+      navigate(`/sections/${firstSection.id}`);
     } catch (e) {
       setErrorMsg(
         e?.response?.data?.message ||
@@ -179,6 +179,10 @@ export default function DashboardPage() {
     } finally {
       setStartingCourseId(null);
     }
+  };
+
+  const handleViewSections = (courseId) => {
+    navigate(`/courses/${courseId}/sections`);
   };
 
   return (
@@ -266,16 +270,26 @@ export default function DashboardPage() {
                       <span>{progress}%</span>
                     </div>
 
-                    <button
-                      className="course__btn"
-                      type="button"
-                      disabled={startingCourseId === course.id}
-                      onClick={() => handleStartCourse(course.id)}
-                    >
-                      {startingCourseId === course.id
-                        ? "Starting..."
-                        : "Start Course"}
-                    </button>
+                    <div style={{ display: "grid", gap: "10px", marginTop: "10px" }}>
+                      <button
+                        className="course__btn"
+                        type="button"
+                        disabled={startingCourseId === course.id}
+                        onClick={() => handleStartCourse(course.id)}
+                      >
+                        {startingCourseId === course.id
+                          ? "Starting..."
+                          : "Start Course"}
+                      </button>
+
+                      <button
+                        className="course__btn"
+                        type="button"
+                        onClick={() => handleViewSections(course.id)}
+                      >
+                        View Sections
+                      </button>
+                    </div>
                   </div>
                 </article>
               );
