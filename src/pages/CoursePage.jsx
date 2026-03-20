@@ -21,7 +21,8 @@ export default function CoursePage() {
 
         const [courseRes, sectionsRes] = await Promise.all([
           api.get(`/api/courses/${courseId}`),
-          api.get(`/api/courses/${courseId}/sections`)
+          // FIXED: правильный endpoint секций
+          api.get(`/api/courses/${courseId}/sections`),
         ]);
 
         if (!alive) return;
@@ -243,9 +244,7 @@ export default function CoursePage() {
                     </div>
 
                     <button
-                      onClick={() =>
-                        navigate(`/courses/${courseId}/sections/${section.id}`)
-                      }
+                      onClick={() => navigate(`/sections/${section.id}`)} // FIXED
                       style={{
                         border: "none",
                         background: "#2563eb",
@@ -348,9 +347,7 @@ export default function CoursePage() {
 
             {sections.length > 0 && (
               <button
-                onClick={() =>
-                  navigate(`/courses/${courseId}/sections/${sections[0].id}`)
-                }
+                onClick={() => navigate(`/sections/${sections[0].id}`)} // FIXED
                 style={{
                   marginTop: 20,
                   width: "100%",

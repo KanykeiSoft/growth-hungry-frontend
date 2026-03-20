@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import "../styles/CoursesPage.css";
 
@@ -85,8 +85,6 @@ function getLessonsLabel(course, index) {
 }
 
 export default function CoursesPage() {
-  const navigate = useNavigate();
-
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
@@ -216,10 +214,7 @@ export default function CoursesPage() {
               const lessonsLabel = getLessonsLabel(course, index);
 
               return (
-                <article
-                  key={course.id}
-                  className={`course-card ${theme}`}
-                >
+                <article key={course.id} className={`course-card ${theme}`}>
                   <div className="course-card-body">
                     <h3 className="course-card-title">{course.title}</h3>
 
@@ -241,13 +236,37 @@ export default function CoursesPage() {
                       <span>{progress}%</span>
                     </div>
 
-                    <button
-                      type="button"
+                    {/* START COURSE */}
+                    <Link
+                      to={`/courses/${course.id}`}
                       className="start-course-btn"
-                      onClick={() => navigate(`/courses/${course.id}`)}
+                      style={{
+                        display: "inline-block",
+                        textAlign: "center",
+                        textDecoration: "none",
+                        width: "100%",
+                        boxSizing: "border-box",
+                        marginTop: "10px",
+                      }}
                     >
                       Start Course
-                    </button>
+                    </Link>
+
+                    {/* VIEW SECTIONS */}
+                    <Link
+                      to={`/courses/${course.id}/sections`}
+                      className="start-course-btn"
+                      style={{
+                        display: "inline-block",
+                        marginTop: "10px",
+                        textAlign: "center",
+                        textDecoration: "none",
+                        width: "100%",
+                        boxSizing: "border-box",
+                      }}
+                    >
+                      View Sections
+                    </Link>
                   </div>
                 </article>
               );
